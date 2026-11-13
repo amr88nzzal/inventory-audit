@@ -32,6 +32,9 @@ COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --prod --filter @inventory/api...
 
 COPY --from=builder /app/apps/api/dist apps/api/dist
+# ملفات التهجيرات تُقرأ وقت التشغيل من مجلد العمل (apps/api/migrations).
+# Migration files are read at runtime from the working directory (apps/api/migrations).
+COPY apps/api/migrations apps/api/migrations
 
 USER node
 EXPOSE 3000

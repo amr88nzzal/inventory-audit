@@ -1,0 +1,24 @@
+# للتطوير المحلي فقط. في الإنتاج: حاويات خلف Nginx وCloudflare Tunnel وأسرار من البيئة.
+# Local development only. Production uses containers behind Nginx and Cloudflare Tunnel,
+# with secrets from the environment.
+services:
+  postgres:
+    image: public.ecr.aws/docker/library/postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-inventory}
+      # لا قيمة افتراضية معروفة: ضع كلمة مرور في .env المحلي.
+      # No well-known default: set a password in your local .env.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-inventory}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5433}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-inventory} -d ${POSTGRES_DB:-inventory}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
