@@ -11,3 +11,18 @@ export {
   usernameSchema,
 } from './auth';
 export type { ChangePasswordInput, LoginInput } from './auth';
+export {
+  ADMIN_ROLE_CODE,
+  createRoleSchema,
+  isPermission,
+  PERMISSIONS,
+  permissionSchema,
+  setUserRolesSchema,
+  updateRoleSchema,
+} from './permissions';
+export type {
+  CreateRoleInput,
+  Permission,
+  SetUserRolesInput,
+  UpdateRoleInput,
+} from './permissions';

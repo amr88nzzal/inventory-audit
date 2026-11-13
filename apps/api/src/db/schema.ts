@@ -59,11 +59,37 @@ export interface RefreshTokensTable {
   used_at: Date | null;
 }
 
+export interface RolesTable extends AuditColumns {
+  id: string;
+  company_id: string;
+  code: string | null;
+  name: string;
+  description: string | null;
+  is_system: Generated<boolean>;
+}
+
+export interface RolePermissionsTable {
+  role_id: string;
+  company_id: string;
+  permission: string;
+}
+
+export interface UserRolesTable {
+  user_id: string;
+  role_id: string;
+  company_id: string;
+  created_at: DefaultedTimestamp;
+  created_by: string | null;
+}
+
 export interface Database {
   companies: CompaniesTable;
   users: UsersTable;
   sessions: SessionsTable;
   refresh_tokens: RefreshTokensTable;
+  roles: RolesTable;
+  role_permissions: RolePermissionsTable;
+  user_roles: UserRolesTable;
 }
 
 export type Company = Selectable<CompaniesTable>;
