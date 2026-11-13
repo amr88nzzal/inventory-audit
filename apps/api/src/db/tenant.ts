@@ -24,6 +24,20 @@ const assertUuid = (value: string, name: string): void => {
  * السياق ينتهي بنهاية المعاملة، فلا يتسرّب بين طلبين يتشاركان اتصالاً من المجمّع.
  * The context ends with the transaction, so it cannot leak between requests sharing a pooled connection.
  */
+/**
+ * يجد معرّف الشركة من رمزها قبل وجود سياق (تسجيل الدخول). يعمل بدور التطبيق لا بدور المالك،
+ * فلا يرى إلا الصف المطابق للرمز عبر سياسة company_code_lookup، ولا يستطيع قراءة غيره.
+ * Finds a company id from its code before any context exists (login). Runs as the app role, not
+ * the owner, so it sees only the row matching the code via the company_code_lookup policy.
+ */
+export const lookupCompanyId = async (db: Kysely<Database>, code: string): Promise<string | null> =>
+  db.transaction().execute(async (trx) => {
+    await sql`SET LOCAL ROLE inventory_app`.execute(trx);
+    await sql`SELECT set_config('app.lookup_code', ${code}, true)`.execute(trx);
+    const row = await trx.selectFrom('companies').select('id').executeTakeFirst();
+    return row?.id ?? null;
+  });
+
 // async كي يصبح أي خطأ تحقق Promise مرفوضاً لا استثناءً متزامناً يفلت من .catch() عند المستدعي.
 // async so a validation error is a rejected Promise, not a sync throw that escapes the caller's .catch().
 export const withTenant = async <T>(

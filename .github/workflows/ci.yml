@@ -77,21 +77,30 @@ jobs:
             docker exec pg pg_isready -U postgres && break
             sleep 1
           done
-      - name: Smoke test (boot, migrate, /api/v1/health)
+      - name: Smoke test (boot, migrate, /api/v1/health, default deny)
         run: |
+          JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
           docker run -d --name api --network ci -p 3000:3000 \
             -e DATABASE_URL=postgres://postgres:postgres@pg:5432/postgres \
+            -e JWT_SECRET="$JWT_SECRET" \
             inventory-api:ci
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3000/api/v1/health; then echo; exit 0; fi
+            if curl -fsS http://127.0.0.1:3000/api/v1/health; then echo; break; fi
+            if [ "$i" = 30 ]; then docker logs api; exit 1; fi
             sleep 1
           done
-          docker logs api
-          exit 1
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/v1/auth/me)
+          [ "$code" = 401 ] || { echo "expected 401 without a token, got $code"; exit 1; }
       - name: Migrations were applied
         run: docker exec pg psql -U postgres -tAc "SELECT name FROM schema_migrations"
-      - name: Server refuses to start without DATABASE_URL
+      - name: Server refuses to start with missing or weak configuration
         run: |
           if docker run --rm inventory-api:ci; then
-            echo "expected a startup failure without DATABASE_URL"; exit 1
+            echo "expected a startup failure without DATABASE_URL and JWT_SECRET"; exit 1
+          fi
+          if docker run --rm --network ci \
+            -e DATABASE_URL=postgres://postgres:postgres@pg:5432/postgres \
+            -e JWT_SECRET=super-secret-jwt-key-change-this-in-production \
+            inventory-api:ci; then
+            echo "expected a startup failure with a placeholder JWT_SECRET"; exit 1
           fi
