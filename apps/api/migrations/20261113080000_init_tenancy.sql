@@ -9,11 +9,17 @@
 -- The app role: not a table owner and cannot bypass RLS. withTenant switches to it via
 -- SET LOCAL ROLE, so isolation holds even if the app connects with a stronger account.
 -- In production an ops-created login role is made a member of it.
+-- الدور على مستوى الخادم كله لا القاعدة الواحدة: فحص «غير موجود» ثم CREATE سباقي إذا هُجّرت
+-- قاعدتان معاً (الاختبارات، أو عدة قواعد على خادم واحد). القفل الاستشاري لا يعبر القواعد.
+-- لذلك نحاول الإنشاء ونتجاهل خطأ التكرار؛ التزامن يرفع 42710 أو 23505 حسب التوقيت.
+-- The role is cluster-wide, not per-database: check-then-CREATE races when two databases are
+-- migrated at once (tests, or several databases on one server). Advisory locks don't cross
+-- databases. So we try to create and ignore a duplicate; concurrency raises 42710 or 23505.
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'inventory_app') THEN
-    CREATE ROLE inventory_app NOLOGIN NOBYPASSRLS;
-  END IF;
+  CREATE ROLE inventory_app NOLOGIN NOBYPASSRLS;
+EXCEPTION
+  WHEN duplicate_object OR unique_violation THEN NULL;
 END
 $$;
 
