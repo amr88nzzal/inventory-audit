@@ -8,6 +8,8 @@ import type { AppConfig } from './config';
 import type { Database } from './db';
 import { AppError } from './errors';
 import { createAuthModule } from './modules/auth';
+import { createRbacModule } from './modules/rbac';
+import type { RbacModule } from './modules/rbac';
 
 // نوسّع Request عبر مساحة Express العامة (لا تحتاج حزمة داخلية غير قابلة للاستيراد).
 // Augment Request via the global Express namespace (no need for an internal, non-importable package).
@@ -26,7 +28,9 @@ export interface AppDeps {
    * وحدات الأعمال المحمية؛ تُركَّب بعد requireAuth تلقائياً، فلا يمكن نسيان حمايتها.
    * Protected business modules; mounted after requireAuth automatically, so protection cannot be forgotten.
    */
-  protectedRouters?: Router[];
+  protectedRouters?: Router[] | ((modules: { rbac: RbacModule }) => Router[]);
+  /** مدة ذاكرة الصلاحيات المؤقتة (اختبارات). Permission cache TTL (tests). */
+  permissionCacheTtlMs?: number;
 }
 
 // معرّف طلب لكل استدعاء لتتبّع الأخطاء في السجلات والردود.
@@ -100,6 +104,12 @@ export const createApp = (deps: AppDeps): Express => {
   );
 
   const auth = createAuthModule(deps);
+  const rbac = createRbacModule({
+    db: deps.db,
+    ...(deps.permissionCacheTtlMs !== undefined
+      ? { permissionCacheTtlMs: deps.permissionCacheTtlMs }
+      : {}),
+  });
   const api = Router();
 
   // المسارات العامة: قائمة بيضاء صريحة وقصيرة. أي مسار غيرها تحت /api/v1 يتطلب توكناً.
@@ -114,7 +124,12 @@ export const createApp = (deps: AppDeps): Express => {
   // does not exist (we do not reveal which routes exist).
   api.use(auth.requireAuth, auth.blockUntilPasswordChanged);
   api.use('/auth', auth.protectedRouter);
-  for (const router of deps.protectedRouters ?? []) api.use(router);
+  api.use(rbac.router);
+  const business =
+    typeof deps.protectedRouters === 'function'
+      ? deps.protectedRouters({ rbac })
+      : (deps.protectedRouters ?? []);
+  for (const router of business) api.use(router);
   api.use(notFound);
 
   app.use('/api/v1', api);
