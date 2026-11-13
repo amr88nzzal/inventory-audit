@@ -5,6 +5,7 @@ import { Pool } from 'pg';
 import type { Kysely } from 'kysely';
 import { createDb, newId, runMigrations } from '../db';
 import type { Database } from '../db';
+import { hashPassword } from '../modules/auth';
 
 const adminUrl =
   process.env['TEST_DATABASE_URL'] ?? 'postgres://postgres:postgres@127.0.0.1:5432/postgres';
@@ -48,11 +49,46 @@ export const createTestDb = async (options: { max?: number } = {}): Promise<Test
   };
 };
 
-export const seedCompany = async (db: Kysely<Database>, name: string): Promise<string> => {
+export const seedCompany = async (
+  db: Kysely<Database>,
+  name: string,
+  code: string | null = null,
+): Promise<string> => {
   const id = newId();
   await db
     .insertInto('companies')
-    .values({ id, name, created_by: null, updated_by: null, deleted_at: null })
+    .values({ id, name, code, created_by: null, updated_by: null, deleted_at: null })
+    .execute();
+  return id;
+};
+
+// مستخدم قادر على الدخول: كلمة مرور مجزّأة بتكلفة الاختبار.
+// A user able to log in: a hashed password at the test cost.
+export const seedLoginUser = async (
+  db: Kysely<Database>,
+  companyId: string,
+  username: string,
+  password: string,
+  options: { mustChangePassword?: boolean; active?: boolean } = {},
+): Promise<string> => {
+  const id = newId();
+  await db
+    .insertInto('users')
+    .values({
+      id,
+      company_id: companyId,
+      username,
+      display_name: `${username} display`,
+      active: options.active ?? true,
+      password_hash: await hashPassword(password, 10),
+      must_change_password: options.mustChangePassword ?? false,
+      password_changed_at: null,
+      locked_until: null,
+      last_login_at: null,
+      created_by: null,
+      updated_by: null,
+      deleted_at: null,
+    })
     .execute();
   return id;
 };
