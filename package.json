@@ -13,7 +13,8 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "test:integration": "pnpm -r --if-present test:integration"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

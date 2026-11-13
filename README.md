@@ -6,9 +6,22 @@ Web + mobile inventory auditing: admins assign audit tasks, employees scan barco
 
 ## الحالة
 
-مرحلة 0 (الأساس) قيد المراجعة في PR. هذا المستودع إعادة بناء كاملة بمعايير مشروع HRMS؛ المستودع القديم `Inventory_scaner` مصدر أفكار فقط.
+المرحلة 0 (الأساس) مدمجة. المرحلة 1أ (قاعدة البيانات والعزل بين الشركات) قيد المراجعة في PR. هذا المستودع إعادة بناء كاملة بمعايير مشروع HRMS؛ المستودع القديم `Inventory_scaner` مصدر أفكار فقط.
 
 ## الوثائق
 
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): العزل بين الشركات والتهجيرات والاختبارات.
 - [`docs/PLAN.md`](docs/PLAN.md): سجل التغييرات ومراحل العمل.
 - [`docs/LEGACY-FEATURES.md`](docs/LEGACY-FEATURES.md): الميزات المستخلصة من القديم والدروس.
+
+## التشغيل المحلي
+
+```bash
+pnpm install
+cp .env.example .env            # ثم عدّل كلمة المرور
+docker compose up -d postgres   # قاعدة بيانات للتطوير
+pnpm --filter @inventory/api dev
+
+pnpm test                       # وحدة
+TEST_DATABASE_URL=postgres://postgres:...@127.0.0.1:5432/postgres pnpm test:integration
+```
