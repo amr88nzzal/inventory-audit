@@ -6,6 +6,7 @@ import { lookupCompanyId, withTenant } from '../../db';
 import type { Database } from '../../db';
 import { AppError } from '../../errors';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password';
+import { createSession, revokeOtherSessions } from './sessions';
 import type { TokenService } from './tokens';
 
 export interface AuthDeps {
@@ -17,6 +18,7 @@ export interface AuthDeps {
 export interface AuthContext {
   userId: string;
   companyId: string;
+  sessionId: string;
   username: string;
   displayName: string;
   mustChangePassword: boolean;
@@ -25,6 +27,8 @@ export interface AuthContext {
 export interface LoginResult {
   accessToken: string;
   expiresAt: Date;
+  refreshToken: string;
+  refreshExpiresAt: Date;
   user: AuthContext;
 }
 
@@ -69,12 +73,15 @@ const lockedError = (until: Date, now: Date): AppError =>
   });
 
 type LoginOutcome =
-  { kind: 'ok'; user: AuthContext } | { kind: 'invalid' } | { kind: 'locked'; until: Date };
+  | { kind: 'ok'; user: AuthContext; refreshToken: string; refreshExpiresAt: Date }
+  | { kind: 'invalid' }
+  | { kind: 'locked'; until: Date };
 
 export const login = async (
   deps: AuthDeps,
   input: LoginInput,
   now: Date = new Date(),
+  meta: { userAgent?: string | null } = {},
 ): Promise<LoginResult> => {
   const { db, config, tokens } = deps;
 
@@ -115,11 +122,21 @@ export const login = async (
       .where('id', '=', user.id)
       .execute();
 
+    const session = await createSession(
+      trx,
+      deps,
+      { companyId, userId: user.id, userAgent: meta.userAgent ?? null },
+      now,
+    );
+
     return {
       kind: 'ok',
+      refreshToken: session.refreshToken,
+      refreshExpiresAt: session.refreshExpiresAt,
       user: {
         userId: user.id,
         companyId,
+        sessionId: session.sessionId,
         username: user.username,
         displayName: user.display_name,
         mustChangePassword: user.must_change_password,
@@ -131,10 +148,20 @@ export const login = async (
   if (outcome.kind === 'invalid') throw invalidCredentials();
 
   const issued = await tokens.sign(
-    { userId: outcome.user.userId, companyId: outcome.user.companyId },
+    {
+      userId: outcome.user.userId,
+      companyId: outcome.user.companyId,
+      sessionId: outcome.user.sessionId,
+    },
     now,
   );
-  return { accessToken: issued.token, expiresAt: issued.expiresAt, user: outcome.user };
+  return {
+    accessToken: issued.token,
+    expiresAt: issued.expiresAt,
+    refreshToken: outcome.refreshToken,
+    refreshExpiresAt: outcome.refreshExpiresAt,
+    user: outcome.user,
+  };
 };
 
 // يُستدعى عند كل طلب محمي: التوكن يثبت الهوية فقط، وحالة الحساب (معطّل، محذوف، كلمة مؤقتة)
@@ -144,7 +171,8 @@ export const login = async (
 // rather than when the token expires.
 export const loadAuthContext = (
   deps: AuthDeps,
-  claims: { userId: string; companyId: string },
+  claims: { userId: string; companyId: string; sessionId: string },
+  now: Date = new Date(),
 ): Promise<AuthContext | null> =>
   withTenant(deps.db, { companyId: claims.companyId, userId: claims.userId }, async ({ trx }) => {
     const company = await trx
@@ -154,6 +182,18 @@ export const loadAuthContext = (
       .where('deleted_at', 'is', null)
       .executeTakeFirst();
     if (!company) return null;
+
+    // الجلسة الملغاة أو المنتهية تُبطل توكن الوصول فوراً (خروج، إعادة استعمال، تغيير كلمة المرور).
+    // A revoked or expired session kills the access token at once (logout, reuse, password change).
+    const session = await trx
+      .selectFrom('sessions')
+      .select('id')
+      .where('id', '=', claims.sessionId)
+      .where('user_id', '=', claims.userId)
+      .where('revoked_at', 'is', null)
+      .where('expires_at', '>', now)
+      .executeTakeFirst();
+    if (!session) return null;
 
     const user = await trx
       .selectFrom('users')
@@ -166,6 +206,7 @@ export const loadAuthContext = (
     return {
       userId: user.id,
       companyId: claims.companyId,
+      sessionId: claims.sessionId,
       username: user.username,
       displayName: user.display_name,
       mustChangePassword: user.must_change_password,
@@ -217,6 +258,7 @@ export const changePassword = async (
         })
         .where('id', '=', ctx.userId)
         .execute();
+      await revokeOtherSessions(trx, ctx, now);
       return 'ok';
     },
   );

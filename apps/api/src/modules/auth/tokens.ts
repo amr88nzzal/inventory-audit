@@ -14,6 +14,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export interface AccessClaims {
   userId: string;
   companyId: string;
+  /** الجلسة التي أُصدر لها التوكن؛ إلغاؤها يُبطل التوكن فوراً. The session it was issued for; revoking it kills the token at once. */
+  sessionId: string;
 }
 
 export interface IssuedToken {
@@ -34,7 +36,7 @@ export const createTokenService = (secret: string, ttlSeconds: number): TokenSer
     sign: async (claims, now = new Date()) => {
       const iat = Math.floor(now.getTime() / 1000);
       const exp = iat + ttlSeconds;
-      const token = await new SignJWT({ cid: claims.companyId })
+      const token = await new SignJWT({ cid: claims.companyId, sid: claims.sessionId })
         .setProtectedHeader({ alg: 'HS256' })
         .setSubject(claims.userId)
         .setIssuer(ISSUER)
@@ -56,9 +58,11 @@ export const createTokenService = (secret: string, ttlSeconds: number): TokenSer
         });
         const userId = payload.sub;
         const companyId = payload['cid'];
+        const sessionId = payload['sid'];
         if (typeof userId !== 'string' || !UUID_RE.test(userId)) return null;
         if (typeof companyId !== 'string' || !UUID_RE.test(companyId)) return null;
-        return { userId, companyId };
+        if (typeof sessionId !== 'string' || !UUID_RE.test(sessionId)) return null;
+        return { userId, companyId, sessionId };
       } catch {
         return null;
       }

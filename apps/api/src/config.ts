@@ -8,6 +8,10 @@ export interface AppConfig {
   databaseUrl: string;
   jwtSecret: string;
   accessTokenTtlSeconds: number;
+  /** مدة توكن التحديث (تتجدد بكل تحديث). Refresh token lifetime (renewed on each refresh). */
+  refreshTokenTtlDays: number;
+  /** عمر الجلسة المطلق. Absolute session lifetime. */
+  sessionMaxDays: number;
   /** أُس تكلفة scrypt (N = 2^x). scrypt cost exponent (N = 2^x). */
   passwordHashLogN: number;
   loginMaxFailures: number;
@@ -96,6 +100,8 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): AppConfig => {
       'ACCESS_TOKEN_TTL_SECONDS',
       errors,
     ),
+    refreshTokenTtlDays: toInt(env['REFRESH_TOKEN_TTL_DAYS'], 30, 'REFRESH_TOKEN_TTL_DAYS', errors),
+    sessionMaxDays: toInt(env['SESSION_MAX_DAYS'], 90, 'SESSION_MAX_DAYS', errors),
     passwordHashLogN,
     loginMaxFailures: toInt(env['LOGIN_MAX_FAILURES'], 5, 'LOGIN_MAX_FAILURES', errors),
     loginLockMinutes: toInt(env['LOGIN_LOCK_MINUTES'], 15, 'LOGIN_LOCK_MINUTES', errors),
@@ -110,6 +116,10 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): AppConfig => {
       ),
     },
   };
+
+  if (config.refreshTokenTtlDays > config.sessionMaxDays) {
+    errors.push('REFRESH_TOKEN_TTL_DAYS must not exceed SESSION_MAX_DAYS');
+  }
 
   if (errors.length > 0) {
     throw new Error(`Invalid configuration:\n- ${errors.join('\n- ')}`);

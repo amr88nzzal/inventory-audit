@@ -37,9 +37,33 @@ export interface UsersTable extends AuditColumns {
   last_login_at: Date | null;
 }
 
+export interface SessionsTable {
+  id: string;
+  company_id: string;
+  user_id: string;
+  user_agent: string | null;
+  created_at: DefaultedTimestamp;
+  last_used_at: DefaultedTimestamp;
+  expires_at: Date;
+  revoked_at: Date | null;
+  revoked_reason: 'logout' | 'logout_all' | 'reuse' | 'password_changed' | null;
+}
+
+export interface RefreshTokensTable {
+  id: string;
+  company_id: string;
+  session_id: string;
+  token_hash: string;
+  created_at: DefaultedTimestamp;
+  expires_at: Date;
+  used_at: Date | null;
+}
+
 export interface Database {
   companies: CompaniesTable;
   users: UsersTable;
+  sessions: SessionsTable;
+  refresh_tokens: RefreshTokensTable;
 }
 
 export type Company = Selectable<CompaniesTable>;

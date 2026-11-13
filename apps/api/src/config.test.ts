@@ -14,6 +14,8 @@ describe('loadConfig', () => {
       passwordHashLogN: 17,
       loginMaxFailures: 5,
       loginLockMinutes: 15,
+      refreshTokenTtlDays: 30,
+      sessionMaxDays: 90,
     });
   });
 
@@ -68,6 +70,12 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, PASSWORD_HASH_LOG_N: '30' })).toThrow(/between 10 and 20/);
     expect(() => loadConfig({ ...base, PORT: 'abc' })).toThrow(/PORT must be a positive integer/);
     expect(() => loadConfig({ ...base, LOGIN_MAX_FAILURES: '0' })).toThrow(/LOGIN_MAX_FAILURES/);
+  });
+
+  it('rejects a refresh lifetime longer than the absolute session lifetime', () => {
+    expect(() =>
+      loadConfig({ ...base, REFRESH_TOKEN_TTL_DAYS: '100', SESSION_MAX_DAYS: '90' }),
+    ).toThrow(/must not exceed SESSION_MAX_DAYS/);
   });
 
   it('reports every problem at once', () => {
