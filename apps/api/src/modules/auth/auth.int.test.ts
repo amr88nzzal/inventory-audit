@@ -348,7 +348,7 @@ describe('default deny under /api/v1', () => {
   const expired = async (): Promise<string> => {
     const svc = createTokenService(testConfig().jwtSecret, 900);
     const { token } = await svc.sign(
-      { userId: acme, companyId: acme },
+      { userId: acme, companyId: acme, sessionId: acme },
       new Date(Date.now() - 3600_000),
     );
     return token;
@@ -380,8 +380,8 @@ describe('default deny under /api/v1', () => {
     const wrongSecret = await createTokenService(
       'another-secret-0123456789-abcdefghijklmnopq',
       900,
-    ).sign({ userId: u.id, companyId: acme });
-    const wrongAud = await new SignJWT({ cid: acme })
+    ).sign({ userId: u.id, companyId: acme, sessionId: newId() });
+    const wrongAud = await new SignJWT({ cid: acme, sid: newId() })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject(u.id)
       .setIssuer('inventory-audit')

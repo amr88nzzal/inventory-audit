@@ -10,6 +10,8 @@ export const testConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   databaseUrl: 'postgres://unused:unused@127.0.0.1:1/unused',
   jwtSecret: 'test-only-jwt-key-0123456789-abcdefghijklmnopqrstuvwxyz',
   accessTokenTtlSeconds: 900,
+  refreshTokenTtlDays: 30,
+  sessionMaxDays: 90,
   passwordHashLogN: 10,
   loginMaxFailures: 5,
   loginLockMinutes: 15,
