@@ -12,6 +12,23 @@ export default tseslint.config(
       'func-style': ['error', 'expression'],
       'no-restricted-exports': ['error', { restrictDefaultExports: { direct: true } }],
       '@typescript-eslint/consistent-type-imports': 'error',
+      // حدود الوحدات: لا استيراد من ملف داخلي في وحدة أخرى، بل عبر index.ts الخاص بها فقط.
+      // Module boundaries: never import an internal file of another module, only its index.ts.
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/db/*', '!**/db/index'],
+              message: 'Import the db module through its index (../db), not its internal files.',
+            },
+            {
+              group: ['**/modules/*/*', '!**/modules/*/index'],
+              message: 'Import a module through its index.ts, not its internal files.',
+            },
+          ],
+        },
+      ],
       // معالج أخطاء Express يُعرَّف بأربعة معاملات، فنسمح بما يبدأ بـ _.
       // Express error handlers need four params, so allow underscore-prefixed ones.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
