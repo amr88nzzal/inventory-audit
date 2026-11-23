@@ -3,6 +3,7 @@ title: عنوان المهمة (فعل + مفعول)
 summary: سطر واحد يشرح ما سيتعلمه القارئ
 roles: employee
 order: 100
+status: api-only
 ---
 
 **متى أحتاج هذا؟** جملة واحدة.

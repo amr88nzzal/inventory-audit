@@ -329,11 +329,11 @@ describe('isolation from company code', () => {
         sql`SELECT 1 FROM platform_admins`.execute(trx),
       ),
     ).rejects.toThrow(/permission denied/);
-    // والعكس: دور المنصة لا يملك أي صلاحية على جداول الشركات (تُمنح لاحقاً بقدر الحاجة فقط).
-    // And the reverse: the platform role has no privilege on company tables (granted later, only as needed).
+    // والعكس: دور المنصة يقرأ الشركات (لإدارتها) لكن لا يملك صلاحية على جداول بياناتها كالمستخدمين.
+    // And the reverse: the platform role reads companies (to manage them) but has no privilege on their data tables like users.
     await expect(
       withPlatform(t.db, (trx) => sql`SELECT 1 FROM companies`.execute(trx)),
-    ).rejects.toThrow(/permission denied/);
+    ).resolves.toBeDefined();
     await expect(
       withPlatform(t.db, (trx) => sql`SELECT 1 FROM users`.execute(trx)),
     ).rejects.toThrow(/permission denied/);

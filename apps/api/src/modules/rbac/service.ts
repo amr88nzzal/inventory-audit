@@ -1,5 +1,6 @@
 import { ADMIN_ROLE_CODE, PERMISSIONS } from '@inventory/shared';
 import type { CreateRoleInput, Permission, UpdateRoleInput } from '@inventory/shared';
+import { sql } from 'kysely';
 import type { Kysely, Transaction } from 'kysely';
 import { newId, withTenant } from '../../db';
 import type { Database } from '../../db';
@@ -351,4 +352,62 @@ export const ensureAdminRole = async (
     })
     .execute();
   return id;
+};
+
+// ينشئ دوراً مخصصاً بالاسم إن لم يوجد ويضبط صلاحياته؛ آمن للإعادة (يستعمله بذر الشركة التجريبية).
+// Creates a custom role by name if missing and sets its permissions; safe to repeat (used by demo seeding).
+export const ensureRole = async (
+  trx: Transaction<Database>,
+  companyId: string,
+  role: { name: string; description: string; permissions: readonly Permission[] },
+  createdBy: string | null,
+): Promise<string> => {
+  const existing = await trx
+    .selectFrom('roles')
+    .select('id')
+    .where(sql<boolean>`lower(name) = lower(${role.name})`)
+    .where('deleted_at', 'is', null)
+    .executeTakeFirst();
+  const id = existing?.id ?? newId();
+  if (!existing) {
+    await trx
+      .insertInto('roles')
+      .values({
+        id,
+        company_id: companyId,
+        code: null,
+        is_system: false,
+        name: role.name,
+        description: role.description,
+        created_by: createdBy,
+        updated_by: createdBy,
+        deleted_at: null,
+      })
+      .execute();
+  }
+  await trx.deleteFrom('role_permissions').where('role_id', '=', id).execute();
+  if (role.permissions.length > 0) {
+    await trx
+      .insertInto('role_permissions')
+      .values(
+        role.permissions.map((permission) => ({ role_id: id, company_id: companyId, permission })),
+      )
+      .execute();
+  }
+  return id;
+};
+
+// يسند دوراً لمستخدم إن لم يكن مسنداً. Assigns a role to a user unless already assigned.
+export const ensureUserRole = async (
+  trx: Transaction<Database>,
+  companyId: string,
+  userId: string,
+  roleId: string,
+  createdBy: string | null,
+): Promise<void> => {
+  await trx
+    .insertInto('user_roles')
+    .values({ user_id: userId, role_id: roleId, company_id: companyId, created_by: createdBy })
+    .onConflict((oc) => oc.doNothing())
+    .execute();
 };

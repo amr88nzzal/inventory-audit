@@ -22,6 +22,12 @@ cd ~/inventory-audit && git pull && docker compose up -d --build
 5. **بديل (الخيار 1):** `docker compose exec -e PLATFORM_CLI_PASSWORD=... api node dist/cli.js create-platform-admin <name>`.
 6. ضياع الجهاز أو كلمة المرور: `reset-platform-admin <name>` بكلمة مؤقتة جديدة، ثم ربط من جديد.
 
+### الشركة التجريبية (للعرض والتجارب)
+
+- الإنشاء أو إكمال الناقص: `docker compose exec api node dist/cli.js seed-demo` (آمن للإعادة؛ يُنفَّذ بعد كل نشر يضيف طبقة بيانات).
+- **قبل كل عرض لمستخدم محتمل:** `docker compose exec api node dist/cli.js reset-demo` يعيدها نظيفة. لا يمسّ إلا الشركات المعلَّمة `is_demo`.
+- الدخول: رمز `demo`، والحسابات وكلمتها في `docs/guide/articles/demo-company.md`. كلمتها معروفة عمداً فلا بيانات حقيقية فيها.
+
 ## 2. النسخ الاحتياطي والاستعادة (مخطَّط: المرحلة 9)
 
 مطلوب: نسخ منطقي مشفّر خارج الخادم، واستعادة تجريبية موثّقة بتاريخها.
