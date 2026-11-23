@@ -441,3 +441,135 @@ describe('input validation', () => {
     }
   });
 });
+
+describe('company creation', () => {
+  const auth = (token: string, method: 'get' | 'post', body?: object): request.Test => {
+    const base = request(app);
+    const r = (method === 'get' ? base.get : base.post)
+      .call(base, '/api/v1/platform/companies')
+      .set('Authorization', `Bearer ${token}`);
+    return body ? r.send(body) : r;
+  };
+  const input = (code: string) => ({
+    name: 'Acme Trading',
+    code,
+    admin: { username: 'boss', displayName: 'The Boss' },
+  });
+  let token: string;
+  beforeAll(async () => {
+    token = await fullLogin(await enrolledAdmin());
+  });
+
+  it('creates company + admin atomically; the temporary password works once and forces a change', async () => {
+    const res = await auth(token, 'post', input('acme-co'));
+    expect(res.status).toBe(201);
+    expect(res.headers['cache-control']).toBe('no-store');
+    const { company, admin, temporaryPassword } = res.body.data;
+    expect(company).toMatchObject({ name: 'Acme Trading', code: 'acme-co', isDemo: false });
+    expect(temporaryPassword.length).toBeGreaterThanOrEqual(20);
+
+    const login = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ companyCode: 'acme-co', username: 'boss', password: temporaryPassword });
+    expect(login.status).toBe(200);
+    // كلمة مؤقتة: كل مسار عدا تغييرها مرفوض. Temporary: every route but changing it is refused.
+    const perms = await request(app)
+      .get('/api/v1/permissions/mine')
+      .set('Authorization', `Bearer ${login.body.data.accessToken}`);
+    expect(perms.status).toBe(403);
+    expect(perms.body.error.code).toBe('PASSWORD_CHANGE_REQUIRED');
+
+    // الأدمن يحمل دور المدير، وكلمته مجزَّأة لا نص. The admin holds the admin role; the password is stored hashed.
+    const stored = await withTenant(t.db, { companyId: company.id }, async ({ trx }) => ({
+      user: await trx
+        .selectFrom('users')
+        .select(['password_hash', 'must_change_password'])
+        .where('id', '=', admin.id)
+        .executeTakeFirstOrThrow(),
+      roles: await trx
+        .selectFrom('user_roles')
+        .select('role_id')
+        .where('user_id', '=', admin.id)
+        .execute(),
+    }));
+    expect(stored.user.password_hash).not.toContain(temporaryPassword);
+    expect(stored.user.must_change_password).toBe(true);
+    expect(stored.roles).toHaveLength(1);
+  });
+
+  it('the temporary password is never returned again (list shows no secrets)', async () => {
+    const list = await auth(token, 'get');
+    expect(list.status).toBe(200);
+    expect(JSON.stringify(list.body)).not.toMatch(/password/i);
+    expect(list.body.data.map((c: { code: string }) => c.code)).toContain('acme-co');
+  });
+
+  it('rejects duplicate and reserved codes, bad input and mass assignment; leaves nothing half-created', async () => {
+    expect((await auth(token, 'post', input('acme-co'))).body.error.code).toBe(
+      'COMPANY_CODE_TAKEN',
+    );
+    for (const code of ['demo', 'demo-old-x1', 'demo-2']) {
+      expect((await auth(token, 'post', input(code))).body.error.code, code).toBe(
+        'COMPANY_CODE_RESERVED',
+      );
+    }
+    for (const bad of [
+      { ...input('x'), code: 'A B' },
+      { ...input('ok-code'), isDemo: true },
+      { ...input('ok-code'), admin: { username: 'u', password: 'chosen-by-client-1' } },
+      { name: 'x', code: 'ok-code' },
+    ]) {
+      expect((await auth(token, 'post', bad)).status).toBe(400);
+    }
+    // فشل الإنشاء لا يترك شركة يتيمة. A failed creation leaves no orphan company.
+    const orphan = await withPlatform(t.db, (trx) =>
+      trx.selectFrom('companies').select('id').where('code', '=', 'ok-code').execute(),
+    );
+    expect(orphan).toHaveLength(0);
+  });
+
+  it('requires a platform token: none, or a company token, is refused', async () => {
+    expect(
+      (await request(app).post('/api/v1/platform/companies').send(input('nope-co'))).status,
+    ).toBe(401);
+    const co = await seedCompany(t.db, 'Other', 'other-co');
+    await seedLoginUser(t.db, co, 'u1', 'correct-horse-battery-9');
+    const lt = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ companyCode: 'other-co', username: 'u1', password: 'correct-horse-battery-9' });
+    const res = await auth(lt.body.data.accessToken, 'post', input('nope-co'));
+    expect(res.status).toBe(401);
+  });
+
+  it('the new company is isolated from existing ones', async () => {
+    const a = await auth(token, 'post', { ...input('iso-a'), admin: { username: 'same' } });
+    const b = await auth(token, 'post', { ...input('iso-b'), admin: { username: 'same' } });
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+    // رمز شركة وكلمة شركة أخرى لا تفتح. Another company's code with this company's password fails.
+    const cross = await request(app).post('/api/v1/auth/login').send({
+      companyCode: 'iso-b',
+      username: 'same',
+      password: a.body.data.temporaryPassword,
+    });
+    expect(cross.status).toBe(401);
+  });
+
+  it('the app role still cannot create companies, and the platform role cannot update real ones', async () => {
+    await expect(
+      withTenant(t.db, { companyId: await seedCompany(t.db, 'X', 'x-co') }, ({ trx }) =>
+        sql`INSERT INTO companies (id, name, code) VALUES (gen_random_uuid(), 'r', 'rogue-2')`.execute(
+          trx,
+        ),
+      ),
+    ).rejects.toThrow(/permission denied/);
+    const upd = await withPlatform(t.db, (trx) =>
+      trx
+        .updateTable('companies')
+        .set({ name: 'hacked' })
+        .where('code', '=', 'acme-co')
+        .executeTakeFirst(),
+    );
+    expect(Number(upd.numUpdatedRows)).toBe(0);
+  });
+});

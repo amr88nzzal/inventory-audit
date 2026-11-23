@@ -26,8 +26,18 @@ export type {
   SetUserRolesInput,
   UpdateRoleInput,
 } from './permissions';
-export { platformEnrollSchema, platformLoginSchema, platformVerifySchema } from './platform';
-export type { PlatformEnrollInput, PlatformLoginInput, PlatformVerifyInput } from './platform';
+export {
+  createCompanySchema,
+  platformEnrollSchema,
+  platformLoginSchema,
+  platformVerifySchema,
+} from './platform';
+export type {
+  CreateCompanyInput,
+  PlatformEnrollInput,
+  PlatformLoginInput,
+  PlatformVerifyInput,
+} from './platform';
 export {
   DEMO_ACCOUNTS,
   DEMO_COMPANY_CODE,

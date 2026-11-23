@@ -126,7 +126,7 @@ describe('resetDemo', () => {
 });
 
 describe('privilege boundaries', () => {
-  it('the platform role cannot update or insert a non-demo company, nor read users', async () => {
+  it('the platform role cannot update a non-demo company, nor read users', async () => {
     const upd = await withPlatform(t.db, (trx) =>
       trx
         .updateTable('companies')
@@ -135,22 +135,6 @@ describe('privilege boundaries', () => {
         .executeTakeFirst(),
     );
     expect(Number(upd.numUpdatedRows)).toBe(0);
-    await expect(
-      withPlatform(t.db, (trx) =>
-        trx
-          .insertInto('companies')
-          .values({
-            id: '00000000-0000-7000-8000-000000000001',
-            name: 'x',
-            code: 'xx-1',
-            is_demo: false,
-            created_by: null,
-            updated_by: null,
-            deleted_at: null,
-          })
-          .execute(),
-      ),
-    ).rejects.toThrow(/row-level security/);
     await expect(
       withPlatform(t.db, (trx) => sql`SELECT 1 FROM users`.execute(trx)),
     ).rejects.toThrow(/permission denied/);
