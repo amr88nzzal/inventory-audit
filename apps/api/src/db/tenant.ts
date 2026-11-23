@@ -58,3 +58,17 @@ export const withTenant = async <T>(
     return fn({ trx, companyId: ctx.companyId, userId });
   });
 };
+
+/**
+ * معاملة بدور المنصة (inventory_platform): تقرأ جدول مديري المنصة وحده، ولا ترى أي جدول شركات.
+ * A transaction as the platform role (inventory_platform): it reads the platform-admin table only
+ * and sees no company table.
+ */
+export const withPlatform = <T>(
+  db: Kysely<Database>,
+  fn: (trx: Transaction<Database>) => Promise<T>,
+): Promise<T> =>
+  db.transaction().execute(async (trx) => {
+    await sql`SET LOCAL ROLE inventory_platform`.execute(trx);
+    return fn(trx);
+  });

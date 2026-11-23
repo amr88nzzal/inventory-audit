@@ -1,3 +1,6 @@
+import { parseEncryptionKeys } from './crypto/encryption';
+import type { EncryptionKeys } from './crypto/encryption';
+
 // الإعدادات كلها من متغيرات البيئة، وتُتحقَّق عند الإقلاع: فشل سريع بدل التشغيل بإعداد خاطئ.
 // All configuration comes from environment variables and is validated at boot: fail fast rather
 // than run with a bad setup.
@@ -16,6 +19,16 @@ export interface AppConfig {
   passwordHashLogN: number;
   loginMaxFailures: number;
   loginLockMinutes: number;
+  /** مفاتيح تشفير الحقول الحساسة. Keys for encrypting sensitive fields. */
+  encryption: EncryptionKeys;
+  platform: {
+    /** عمر توكن مدير المنصة بالدقائق (بلا Refresh: يعيد الدخول بعده). Platform token lifetime in minutes (no refresh: sign in again). */
+    tokenTtlMinutes: number;
+    /** إن لم تكن فارغة، غير هذه العناوين ترى 404 على /platform. When non-empty, other addresses get 404 on /platform. */
+    allowedIps: string[];
+    /** إنشاء أول مدير منصة عند الإقلاع إن كان الجدول فارغاً. Create the first platform admin at boot when the table is empty. */
+    bootstrap: { username: string; password: string } | null;
+  };
   rateLimit: {
     generalPerMinute: number;
     /** محاولات الدخول لكل (عنوان + شركة + مستخدم) في النافذة. Login attempts per (ip + company + user) per window. */
@@ -89,6 +102,17 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): AppConfig => {
     errors.push('PASSWORD_HASH_LOG_N must be at least 15 in production');
   }
 
+  const enc = parseEncryptionKeys(env['ENCRYPTION_KEYS'], env['ENCRYPTION_KEY_ID']);
+  errors.push(...enc.errors);
+
+  const bootUser = env['PLATFORM_ADMIN_USERNAME']?.trim() ?? '';
+  const bootPass = env['PLATFORM_ADMIN_PASSWORD'] ?? '';
+  if ((bootUser === '') !== (bootPass === '')) {
+    errors.push('PLATFORM_ADMIN_USERNAME and PLATFORM_ADMIN_PASSWORD must be set together');
+  } else if (bootPass !== '' && bootPass.length < 12) {
+    errors.push('PLATFORM_ADMIN_PASSWORD must be at least 12 characters');
+  }
+
   const config: AppConfig = {
     nodeEnv,
     port: toInt(env['PORT'], 3000, 'PORT', errors),
@@ -105,6 +129,21 @@ export const loadConfig = (env: NodeJS.ProcessEnv = process.env): AppConfig => {
     passwordHashLogN,
     loginMaxFailures: toInt(env['LOGIN_MAX_FAILURES'], 5, 'LOGIN_MAX_FAILURES', errors),
     loginLockMinutes: toInt(env['LOGIN_LOCK_MINUTES'], 15, 'LOGIN_LOCK_MINUTES', errors),
+    encryption: enc.value ?? { keys: new Map(), currentKeyId: '' },
+    platform: {
+      tokenTtlMinutes: toInt(
+        env['PLATFORM_TOKEN_TTL_MINUTES'],
+        30,
+        'PLATFORM_TOKEN_TTL_MINUTES',
+        errors,
+      ),
+      allowedIps: (env['PLATFORM_ALLOWED_IPS'] ?? '')
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean),
+      bootstrap:
+        bootUser !== '' && bootPass !== '' ? { username: bootUser, password: bootPass } : null,
+    },
     rateLimit: {
       generalPerMinute: toInt(env['RATE_LIMIT_PER_MINUTE'], 300, 'RATE_LIMIT_PER_MINUTE', errors),
       loginPerWindow: toInt(env['RATE_LIMIT_LOGIN'], 10, 'RATE_LIMIT_LOGIN', errors),

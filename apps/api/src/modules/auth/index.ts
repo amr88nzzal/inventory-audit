@@ -32,4 +32,4 @@ export type { AuthContext } from './service';
 
 // تجزئة كلمات المرور متاحة للوحدات الأخرى (مثل إنشاء الأدمن الأول لاحقاً).
 // Password hashing is exposed to other modules (e.g. creating the first admin later).
-export { hashPassword } from './password';
+export { hashPassword, verifyAgainstDummy, verifyPassword } from './password';

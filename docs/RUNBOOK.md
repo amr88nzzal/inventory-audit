@@ -13,6 +13,15 @@ cd ~/inventory-audit && git pull && docker compose up -d --build
 - التهجيرات تُطبَّق عند الإقلاع؛ خذ نسخة احتياطية قبل أي تهجير مدمّر.
 - عند نشر ميزة تضيف صلاحية: امنحها للأدوار القائمة بعد النشر.
 
+### أول مدير منصة (مدير المشروع)
+
+1. ولّد مفتاح التشفير: `echo "k1:$(openssl rand -base64 32)"` وضعه في `.env` كـ `ENCRYPTION_KEYS` مع `ENCRYPTION_KEY_ID=k1`. **احفظ نسخة منه خارج الخادم وبعيداً عن النسخ الاحتياطية للقاعدة**؛ ضياعه يعني فقدان ربط TOTP (يُعالج بـ reset).
+2. **الإنتاج (الخيار 2):** ضع `PLATFORM_ADMIN_USERNAME` و`PLATFORM_ADMIN_PASSWORD` (12 حرفاً فأكثر) ثم النشر. سيُنشأ الحساب عند الإقلاع.
+3. سجّل الدخول من `/api/v1/platform/auth/login`: ستحصل على سر TOTP ورابط `otpauth://` مرة واحدة؛ أضفه لتطبيق المصادقة وأكمل `enroll` مع كلمة مرور جديدة.
+4. **احذف `PLATFORM_ADMIN_PASSWORD` من `.env`** وأعد النشر.
+5. **بديل (الخيار 1):** `docker compose exec -e PLATFORM_CLI_PASSWORD=... api node dist/cli.js create-platform-admin <name>`.
+6. ضياع الجهاز أو كلمة المرور: `reset-platform-admin <name>` بكلمة مؤقتة جديدة، ثم ربط من جديد.
+
 ## 2. النسخ الاحتياطي والاستعادة (مخطَّط: المرحلة 9)
 
 مطلوب: نسخ منطقي مشفّر خارج الخادم، واستعادة تجريبية موثّقة بتاريخها.

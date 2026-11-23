@@ -82,6 +82,24 @@ export interface UserRolesTable {
   created_by: string | null;
 }
 
+export interface PlatformAdminsTable {
+  id: string;
+  username: string;
+  display_name: string;
+  password_hash: string;
+  must_change_password: Generated<boolean>;
+  active: Generated<boolean>;
+  token_version: Generated<number>;
+  failed_login_count: Generated<number>;
+  locked_until: Date | null;
+  totp_secret_enc: string | null;
+  totp_enrolled_at: Date | null;
+  totp_last_step: string | null;
+  last_login_at: Date | null;
+  created_at: DefaultedTimestamp;
+  updated_at: DefaultedTimestamp;
+}
+
 export interface Database {
   companies: CompaniesTable;
   users: UsersTable;
@@ -90,6 +108,7 @@ export interface Database {
   roles: RolesTable;
   role_permissions: RolePermissionsTable;
   user_roles: UserRolesTable;
+  platform_admins: PlatformAdminsTable;
 }
 
 export type Company = Selectable<CompaniesTable>;

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { isWeakSecret, loadConfig } from './config';
 
 const GOOD_SECRET = 'Xk9fQ2mWv7LpZr4TnB8cHy3JdUe6SaGo1MiNq5VtAw0';
-const base = { DATABASE_URL: 'postgres://u:p@h:5432/d', JWT_SECRET: GOOD_SECRET };
+const ENC_KEY = Buffer.from('0123456789abcdef0123456789ABCDEF').toString('base64');
+const base = {
+  DATABASE_URL: 'postgres://u:p@h:5432/d',
+  JWT_SECRET: GOOD_SECRET,
+  ENCRYPTION_KEYS: `k1:${ENC_KEY}`,
+  ENCRYPTION_KEY_ID: 'k1',
+};
 
 describe('loadConfig', () => {
   it('loads defaults from a minimal valid environment', () => {
@@ -76,6 +82,33 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({ ...base, REFRESH_TOKEN_TTL_DAYS: '100', SESSION_MAX_DAYS: '90' }),
     ).toThrow(/must not exceed SESSION_MAX_DAYS/);
+  });
+
+  it('requires valid encryption keys', () => {
+    const noKeys: Record<string, string> = { ...base };
+    delete noKeys['ENCRYPTION_KEYS'];
+    expect(() => loadConfig(noKeys)).toThrow(/ENCRYPTION_KEYS is required/);
+    expect(() => loadConfig({ ...base, ENCRYPTION_KEY_ID: 'zz' })).toThrow(/must name a key/);
+  });
+
+  it('platform bootstrap credentials come as a pair and the password is long enough', () => {
+    expect(() => loadConfig({ ...base, PLATFORM_ADMIN_USERNAME: 'root' })).toThrow(/set together/);
+    expect(() =>
+      loadConfig({ ...base, PLATFORM_ADMIN_USERNAME: 'root', PLATFORM_ADMIN_PASSWORD: 'short' }),
+    ).toThrow(/at least 12/);
+    const c = loadConfig({
+      ...base,
+      PLATFORM_ADMIN_USERNAME: 'root',
+      PLATFORM_ADMIN_PASSWORD: 'a-long-enough-password',
+    });
+    expect(c.platform.bootstrap).toEqual({ username: 'root', password: 'a-long-enough-password' });
+    expect(loadConfig(base).platform.bootstrap).toBeNull();
+  });
+
+  it('parses the platform IP allowlist', () => {
+    expect(
+      loadConfig({ ...base, PLATFORM_ALLOWED_IPS: '1.2.3.4, 5.6.7.8,' }).platform.allowedIps,
+    ).toEqual(['1.2.3.4', '5.6.7.8']);
   });
 
   it('reports every problem at once', () => {
