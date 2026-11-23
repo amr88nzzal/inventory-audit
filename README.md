@@ -14,7 +14,7 @@ Web + mobile inventory auditing: admins assign audit tasks, employees scan barco
 - [`docs/PLAN.md`](docs/PLAN.md): الخطة الحيّة (DoD، المراحل، المخاطر، سجل التغييرات).
 - [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md): قواعد الكود وGit وسجل القرارات.
 - [`docs/RUNBOOK.md`](docs/RUNBOOK.md): النشر والتشغيل وقائمة قبول المستخدم (UAT).
-- [`docs/guide/`](docs/guide/README.md): دليل المستخدم (مقال لكل ميزة).
+- [`docs/guide/`](docs/guide/README.md): دليل المستخدم (مقال لكل ميزة)، ويشمل [الشركة التجريبية](docs/guide/articles/demo-company.md) للتجارب والعرض.
 - [`docs/LEGACY-FEATURES.md`](docs/LEGACY-FEATURES.md): الميزات المستخلصة من القديم والدروس.
 
 ## التشغيل المحلي

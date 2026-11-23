@@ -21,6 +21,8 @@ export interface CompaniesTable extends AuditColumns {
   name: string;
   /** رمز الدخول؛ يصبح إلزامياً بعد وجود مسار إنشاء الشركات. Login code; becomes mandatory once company creation exists. */
   code: string | null;
+  /** شركة تجريبية ببيانات وهمية. A demo company with fake data. */
+  is_demo: Generated<boolean>;
 }
 
 export interface UsersTable extends AuditColumns {

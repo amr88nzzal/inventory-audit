@@ -30,5 +30,5 @@ export const createRbacModule = (deps: {
   };
 };
 
-export { ensureAdminRole } from './service';
+export { ensureAdminRole, ensureRole, ensureUserRole } from './service';
 export type { RequirePermission } from './middleware';

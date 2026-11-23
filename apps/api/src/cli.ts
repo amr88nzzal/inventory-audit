@@ -1,5 +1,6 @@
 import { loadConfig } from './config';
 import { createDb } from './db';
+import { resetDemo, seedDemo } from './modules/demo';
 import { createPlatformAdmin, resetPlatformAdmin } from './modules/platform';
 
 // أوامر تشغيلية تُنفَّذ على الخادم (الخيار الأول لإنشاء مدير المنصة):
@@ -10,10 +11,27 @@ import { createPlatformAdmin, resetPlatformAdmin } from './modules/platform';
 // The password is read from the environment, not the command line, so it never lands in shell history.
 
 const USAGE =
-  'Usage: PLATFORM_CLI_PASSWORD=... node dist/cli.js <create-platform-admin|reset-platform-admin> <username>';
+  'Usage: PLATFORM_CLI_PASSWORD=... node dist/cli.js <create-platform-admin|reset-platform-admin> <username>\n       node dist/cli.js <seed-demo|reset-demo>';
 
 const main = async (): Promise<number> => {
   const [command, username] = process.argv.slice(2);
+  // أوامر الشركة التجريبية لا تحتاج كلمة مرور (كلمتها معروفة ومنشورة في الدليل).
+  // Demo commands need no password (the demo password is public, in the guide).
+  if (command === 'seed-demo' || command === 'reset-demo') {
+    const config = loadConfig();
+    const db = createDb(config.databaseUrl, { max: 2 });
+    try {
+      const deps = { db, logN: config.passwordHashLogN };
+      const r = command === 'seed-demo' ? await seedDemo(deps) : await resetDemo(deps);
+      console.log(
+        `${command === 'seed-demo' ? 'Seeded' : 'Reset'} demo company "${r.companyCode}" ` +
+          `(${r.createdCompany ? 'created' : 'already existed'}): ${r.usernames.join(', ')}`,
+      );
+      return 0;
+    } finally {
+      await db.destroy();
+    }
+  }
   const password = process.env['PLATFORM_CLI_PASSWORD'] ?? '';
   if (!command || !username || !password) {
     console.error(USAGE);

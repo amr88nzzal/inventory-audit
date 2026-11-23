@@ -28,3 +28,11 @@ export type {
 } from './permissions';
 export { platformEnrollSchema, platformLoginSchema, platformVerifySchema } from './platform';
 export type { PlatformEnrollInput, PlatformLoginInput, PlatformVerifyInput } from './platform';
+export {
+  DEMO_ACCOUNTS,
+  DEMO_COMPANY_CODE,
+  DEMO_COMPANY_NAME,
+  DEMO_PASSWORD,
+  DEMO_ROLES,
+} from './demo';
+export type { DemoAccount, DemoRole } from './demo';
