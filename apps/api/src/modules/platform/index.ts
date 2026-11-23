@@ -34,7 +34,7 @@ export const createPlatformModule = (base: {
     deps,
     publicRouter: createPlatformPublicRouter(deps),
     requireAuth: createRequirePlatformAuth(deps),
-    protectedRouter: createPlatformProtectedRouter(),
+    protectedRouter: createPlatformProtectedRouter(deps),
     ipGuard: platformIpGuard(base.config.platform.allowedIps),
   };
 };

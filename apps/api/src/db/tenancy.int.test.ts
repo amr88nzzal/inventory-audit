@@ -193,6 +193,7 @@ describe('fail closed and least privilege', () => {
           .values({
             id: newId(),
             name: 'Rogue',
+            code: 'rogue-co',
             created_by: null,
             updated_by: null,
             deleted_at: null,

@@ -38,6 +38,23 @@ export const lookupCompanyId = async (db: Kysely<Database>, code: string): Promi
     return row?.id ?? null;
   });
 
+/**
+ * يحوّل معاملة مفتوحة إلى سياق شركة (دور التطبيق + app.company_id). يُستعمل من withTenant، ومن
+ * إنشاء الشركة حيث تبدأ المعاملة بدور المنصة ثم تنتقل لسياق الشركة الجديدة ذاتياً (ذرّية الإنشاء).
+ * Turns an open transaction into a tenant context (app role + app.company_id). Used by withTenant and by
+ * company creation, whose transaction starts as the platform role then moves into the new company's context (atomic creation).
+ */
+export const enterTenant = async (
+  trx: Transaction<Database>,
+  ctx: { companyId: string; userId: string | null },
+): Promise<void> => {
+  assertUuid(ctx.companyId, 'companyId');
+  if (ctx.userId !== null) assertUuid(ctx.userId, 'userId');
+  await sql`SET LOCAL ROLE inventory_app`.execute(trx);
+  await sql`SELECT set_config('app.company_id', ${ctx.companyId}, true),
+                   set_config('app.user_id', ${ctx.userId ?? ''}, true)`.execute(trx);
+};
+
 // async كي يصبح أي خطأ تحقق Promise مرفوضاً لا استثناءً متزامناً يفلت من .catch() عند المستدعي.
 // async so a validation error is a rejected Promise, not a sync throw that escapes the caller's .catch().
 export const withTenant = async <T>(
@@ -52,9 +69,7 @@ export const withTenant = async <T>(
   return db.transaction().execute(async (trx) => {
     // نبدّل إلى دور غير مالك ولا يتجاوز RLS، فيبقى العزل حتى لو اتصل التطبيق بحساب أقوى.
     // Switch to a non-owner role that cannot bypass RLS, so isolation holds even on a stronger login.
-    await sql`SET LOCAL ROLE inventory_app`.execute(trx);
-    await sql`SELECT set_config('app.company_id', ${ctx.companyId}, true),
-                     set_config('app.user_id', ${userId ?? ''}, true)`.execute(trx);
+    await enterTenant(trx, { companyId: ctx.companyId, userId });
     return fn({ trx, companyId: ctx.companyId, userId });
   });
 };

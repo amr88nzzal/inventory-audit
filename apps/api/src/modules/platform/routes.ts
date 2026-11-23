@@ -1,9 +1,15 @@
-import { platformEnrollSchema, platformLoginSchema, platformVerifySchema } from '@inventory/shared';
+import {
+  createCompanySchema,
+  platformEnrollSchema,
+  platformLoginSchema,
+  platformVerifySchema,
+} from '@inventory/shared';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import { Router } from 'express';
 import type { Request, RequestHandler } from 'express';
 import { AppError } from '../../errors';
 import { parseInput } from '../../validation';
+import { createCompanyWithAdmin, listCompanies } from './companies';
 import { completeEnrollment, login, verifyLoginCode } from './service';
 import type { PlatformDeps, PlatformSession } from './service';
 
@@ -51,7 +57,7 @@ export const createPlatformPublicRouter = (deps: PlatformDeps): Router => {
 };
 
 /** مسارات محمية بتوكن المنصة. Routes protected by a platform token. */
-export const createPlatformProtectedRouter = (): Router => {
+export const createPlatformProtectedRouter = (deps: PlatformDeps): Router => {
   const router = Router();
   router.get('/me', (req, res) => {
     const admin = req.platformAdmin;
@@ -61,5 +67,20 @@ export const createPlatformProtectedRouter = (): Router => {
       meta: {},
     });
   });
+  router.get('/companies', async (_req, res) => {
+    res.json({ data: await listCompanies(deps), meta: {} });
+  });
+
+  // كلمة المرور المؤقتة تُعرض هنا مرة واحدة؛ نمنع التخزين المؤقت للاستجابة.
+  // The temporary password is shown here once; forbid caching of the response.
+  router.post('/companies', async (req, res) => {
+    const admin = req.platformAdmin;
+    if (!admin) throw new AppError('UNAUTHENTICATED', 401, 'Authentication required');
+    const input = parseInput(createCompanySchema, req.body);
+    const created = await createCompanyWithAdmin(deps, admin, input);
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(201).json({ data: created, meta: {} });
+  });
+
   return router;
 };

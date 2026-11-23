@@ -55,9 +55,11 @@ export const seedCompany = async (
   code: string | null = null,
 ): Promise<string> => {
   const id = newId();
+  // الرمز إلزامي: نولّد رمزاً فريداً حين لا يهم الاختبار. The code is mandatory: generate a unique one when the test doesn't care.
+  const finalCode = code ?? `t-${randomBytes(5).toString('hex')}`;
   await db
     .insertInto('companies')
-    .values({ id, name, code, created_by: null, updated_by: null, deleted_at: null })
+    .values({ id, name, code: finalCode, created_by: null, updated_by: null, deleted_at: null })
     .execute();
   return id;
 };

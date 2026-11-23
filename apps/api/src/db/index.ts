@@ -3,6 +3,6 @@
 export { createDb, newId } from './client';
 export { runMigrations } from './migrate';
 export type { MigrationResult } from './migrate';
-export { lookupCompanyId, withPlatform, withTenant } from './tenant';
+export { enterTenant, lookupCompanyId, withPlatform, withTenant } from './tenant';
 export type { TenantContext } from './tenant';
 export type { Company, Database, NewUser, User, UserUpdate } from './schema';
