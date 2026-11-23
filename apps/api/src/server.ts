@@ -1,6 +1,7 @@
 import { createApp } from './app';
 import { loadConfig } from './config';
 import { createDb, runMigrations } from './db';
+import { bootstrapPlatformAdmin } from './modules/platform';
 
 const log = (entry: Record<string, unknown>): void => console.log(JSON.stringify(entry));
 
@@ -17,6 +18,10 @@ const main = async (): Promise<void> => {
   log({ level: 'info', msg: 'migrations done', ...result });
 
   const db = createDb(config.databaseUrl);
+
+  // أول مدير منصة من البيئة (الإنتاج): يُنشأ مرة واحدة فقط إن لم يوجد مدير.
+  // The first platform admin from the environment (production): created once, only when none exists.
+  await bootstrapPlatformAdmin({ db, config }, log);
   const server = createApp({ db, config }).listen(config.port, () =>
     log({ level: 'info', msg: 'api listening', port: config.port }),
   );

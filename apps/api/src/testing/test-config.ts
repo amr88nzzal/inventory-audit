@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { AppConfig } from '../config';
 
 // إعداد للاختبارات: تكلفة تجزئة دنيا للسرعة، وحدود معدّل عالية كي لا تتداخل مع الاختبارات
@@ -15,6 +16,12 @@ export const testConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   passwordHashLogN: 10,
   loginMaxFailures: 5,
   loginLockMinutes: 15,
+  // مفتاح تشفير ثابت للاختبارات فقط. A fixed encryption key for tests only.
+  encryption: {
+    keys: new Map([['t1', createHash('sha256').update('inventory-audit-test-key').digest()]]),
+    currentKeyId: 't1',
+  },
+  platform: { tokenTtlMinutes: 30, allowedIps: [], bootstrap: null },
   rateLimit: { generalPerMinute: 100_000, loginPerWindow: 100_000, loginWindowMinutes: 15 },
   ...overrides,
 });

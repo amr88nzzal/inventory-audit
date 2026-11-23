@@ -8,6 +8,7 @@ import type { AppConfig } from './config';
 import type { Database } from './db';
 import { AppError } from './errors';
 import { createAuthModule } from './modules/auth';
+import { createPlatformModule } from './modules/platform';
 import { createRbacModule } from './modules/rbac';
 import type { RbacModule } from './modules/rbac';
 
@@ -118,6 +119,21 @@ export const createApp = (deps: AppDeps): Express => {
     res.json({ data: { status: 'ok' }, meta: {} });
   });
   api.use('/auth', auth.publicRouter);
+
+  // منطقة مدير المنصة: مصادقتها منفصلة (توكن بجمهور مختلف، وحساب في جدول مختلف) فتُركَّب قبل رفض
+  // الشركات الافتراضي، ولها رفضها الافتراضي الخاص: كل ما بعد مسارات الدخول يتطلب توكن مدير منصة،
+  // حتى المسار غير الموجود.
+  // The platform admin area: its authentication is separate (a token with a different audience, an
+  // account in a different table), so it mounts before the company default deny and has its own:
+  // everything after the sign-in routes needs a platform token, even a route that does not exist.
+  const platform = createPlatformModule({ db: deps.db, config });
+  const platformApi = Router();
+  platformApi.use(platform.ipGuard);
+  platformApi.use(platform.publicRouter);
+  platformApi.use(platform.requireAuth);
+  platformApi.use(platform.protectedRouter);
+  platformApi.use(notFound);
+  api.use('/platform', platformApi);
 
   // رفض افتراضي: من هنا فصاعداً لا يصل أحد دون توكن صالح، حتى لمسار غير موجود (لا نكشف المسارات).
   // Default deny: from here on nobody gets through without a valid token, even to a route that

@@ -80,9 +80,14 @@ jobs:
       - name: Smoke test (boot, migrate, /api/v1/health, default deny)
         run: |
           JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')
+          ENCRYPTION_KEYS="k1:$(openssl rand -base64 32)"
+          echo "JWT_SECRET=$JWT_SECRET" >> "$GITHUB_ENV"
+          echo "ENCRYPTION_KEYS=$ENCRYPTION_KEYS" >> "$GITHUB_ENV"
           docker run -d --name api --network ci -p 3000:3000 \
             -e DATABASE_URL=postgres://postgres:postgres@pg:5432/postgres \
             -e JWT_SECRET="$JWT_SECRET" \
+            -e ENCRYPTION_KEYS="$ENCRYPTION_KEYS" -e ENCRYPTION_KEY_ID=k1 \
+            -e PLATFORM_ADMIN_USERNAME=ci-owner -e PLATFORM_ADMIN_PASSWORD=ci-bootstrap-password-1 \
             inventory-api:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3000/api/v1/health; then echo; break; fi
@@ -91,6 +96,22 @@ jobs:
           done
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/v1/auth/me)
           [ "$code" = 401 ] || { echo "expected 401 without a token, got $code"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/v1/platform/me)
+          [ "$code" = 401 ] || { echo "expected 401 on the platform area without a token, got $code"; exit 1; }
+      - name: Platform admin from the environment, and the CLI
+        run: |
+          # أول مدير منصة أُنشئ من البيئة عند الإقلاع: الدخول يطلب ربط TOTP، ولا يظهر السر في السجلات.
+          # The first platform admin was created from the environment at boot: sign-in asks for TOTP enrollment, and the password never appears in logs.
+          step=$(curl -fsS -X POST http://127.0.0.1:3000/api/v1/platform/auth/login \
+            -H 'content-type: application/json' \
+            -d '{"username":"ci-owner","password":"ci-bootstrap-password-1"}' | grep -o '"step":"enroll"')
+          [ "$step" = '"step":"enroll"' ] || { echo "expected the enroll step"; exit 1; }
+          if docker logs api 2>&1 | grep -q 'ci-bootstrap-password-1'; then echo "password leaked into logs"; exit 1; fi
+          # أمر CLI داخل الحاوية نفسها (الخيار الأول). The CLI inside the same image (the first option).
+          docker exec -e PLATFORM_CLI_PASSWORD=ci-cli-password-1234 api node dist/cli.js create-platform-admin ci-second
+          if docker exec -e PLATFORM_CLI_PASSWORD=ci-cli-password-1234 api node dist/cli.js create-platform-admin ci-second; then
+            echo "expected a duplicate-username failure"; exit 1
+          fi
       - name: Migrations were applied
         run: docker exec pg psql -U postgres -tAc "SELECT name FROM schema_migrations"
       - name: Server refuses to start with missing or weak configuration
@@ -100,6 +121,7 @@ jobs:
           fi
           if docker run --rm --network ci \
             -e DATABASE_URL=postgres://postgres:postgres@pg:5432/postgres \
+            -e ENCRYPTION_KEYS="$ENCRYPTION_KEYS" -e ENCRYPTION_KEY_ID=k1 \
             -e JWT_SECRET=super-secret-jwt-key-change-this-in-production \
             inventory-api:ci; then
             echo "expected a startup failure with a placeholder JWT_SECRET"; exit 1

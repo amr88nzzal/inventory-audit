@@ -26,3 +26,5 @@ export type {
   SetUserRolesInput,
   UpdateRoleInput,
 } from './permissions';
+export { platformEnrollSchema, platformLoginSchema, platformVerifySchema } from './platform';
+export type { PlatformEnrollInput, PlatformLoginInput, PlatformVerifyInput } from './platform';
