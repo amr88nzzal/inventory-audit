@@ -200,7 +200,7 @@ describe('list: pagination, filter, sort, Arabic search', () => {
     const codes = [...p1.body.data, ...p2.body.data].map((w: { code: string }) => w.code);
     expect(codes).toEqual([...codes].sort());
     const desc = await as(adminB).get('/warehouses?sort=code&dir=desc&pageSize=1');
-    expect(desc.body.data[0].code >= codes[codes.length - 1]).toBe(true);
+    expect(desc.body.data[0].code >= (codes[codes.length - 1] ?? '')).toBe(true);
   });
 
   it('searches Arabic without caring about hamza/taa marbuta/diacritics, and treats % _ as literals', async () => {
