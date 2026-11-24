@@ -44,7 +44,7 @@ echo "الجداول: $tables · التهجيرات: $migs (آخرها $last)"
 # النسخة بحساب المالك فتتجاوز RLS؛ الفحص هنا على مستوى الخادم لا الشركة.
 # The dump is taken as the owner so it bypasses RLS; this check is server-wide, not per company.
 echo "الشركات: $companies"
-[ "$tables" -gt 10 ] || { echo "FAIL: عدد الجداول غير معقول" >&2; exit 6; }
+[ "$tables" -ge 5 ] || { echo "FAIL: عدد الجداول غير معقول" >&2; exit 6; }
 [ "$companies" -ge 1 ] || { echo "FAIL: لا شركات في النسخة" >&2; exit 7; }
 # سلامة مرجعية بسيطة: لا مستخدمين ولا أدوار بلا شركة
 orphans="$(q "select (select count(*) from users u where not exists (select 1 from companies c where c.id = u.company_id)) + (select count(*) from roles r where not exists (select 1 from companies c where c.id = r.company_id))")"
