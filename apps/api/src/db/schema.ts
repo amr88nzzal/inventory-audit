@@ -110,6 +110,33 @@ export interface UserWarehousesTable {
   created_by: string | null;
 }
 
+export interface ItemsTable extends AuditColumns {
+  id: string;
+  company_id: string;
+  barcode: string;
+  sku: string | null;
+  name: string;
+  search_text: string;
+  /** numeric يعود نصاً من pg (لا number). numeric comes back from pg as a string (never number). */
+  price: string | null;
+  supplier: string | null;
+  category: string | null;
+  account_no: string | null;
+  base_unit: Generated<string>;
+  tolerance_pct: string | null;
+  active: Generated<boolean>;
+}
+
+export interface ItemUnitsTable {
+  id: string;
+  company_id: string;
+  item_id: string;
+  name: string;
+  factor: string;
+  created_at: DefaultedTimestamp;
+  created_by: string | null;
+}
+
 export interface PlatformAdminsTable {
   id: string;
   username: string;
@@ -139,6 +166,8 @@ export interface Database {
   warehouses: WarehousesTable;
   locations: LocationsTable;
   user_warehouses: UserWarehousesTable;
+  items: ItemsTable;
+  item_units: ItemUnitsTable;
   platform_admins: PlatformAdminsTable;
 }
 
