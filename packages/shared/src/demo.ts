@@ -23,6 +23,121 @@ export interface DemoWarehouse {
 }
 
 // طبقة المرحلة 2: مستودعات ومواقع وهمية. Phase 2 layer: fake warehouses and locations.
+export interface DemoItem {
+  barcode: string;
+  name: string;
+  price: string;
+  category: string;
+  supplier: string;
+  baseUnit?: string;
+  units?: readonly { name: string; factor: string }[];
+}
+
+// طبقة المرحلة 2ب: أصناف وهمية بباركودات تجريبية (ليست لمنتجات حقيقية).
+// Phase 2b layer: fake items with made-up barcodes (not real products).
+export const DEMO_ITEMS: readonly DemoItem[] = [
+  {
+    barcode: '9900000000011',
+    name: 'عصير برتقال 1 لتر',
+    price: '1.250',
+    category: 'مشروبات',
+    supplier: 'مصنع الواحة',
+    units: [{ name: 'كرتونة', factor: '12' }],
+  },
+  {
+    barcode: '9900000000028',
+    name: 'مياه معدنية 500 مل',
+    price: '0.250',
+    category: 'مشروبات',
+    supplier: 'مصنع الواحة',
+    units: [
+      { name: 'كرتونة', factor: '24' },
+      { name: 'باليت', factor: '960' },
+    ],
+  },
+  {
+    barcode: '9900000000035',
+    name: 'أرز بسمتي 5 كغ',
+    price: '7.900',
+    category: 'مواد غذائية',
+    supplier: 'شركة الحبوب',
+    units: [{ name: 'كرتونة', factor: '4' }],
+  },
+  {
+    barcode: '9900000000042',
+    name: 'سكر ناعم 1 كغ',
+    price: '0.850',
+    category: 'مواد غذائية',
+    supplier: 'شركة الحبوب',
+    units: [{ name: 'كرتونة', factor: '10' }],
+  },
+  {
+    barcode: '9900000000059',
+    name: 'زيت ذرة 1.8 لتر',
+    price: '4.500',
+    category: 'مواد غذائية',
+    supplier: 'شركة النخيل',
+    units: [{ name: 'كرتونة', factor: '6' }],
+  },
+  {
+    barcode: '9900000000066',
+    name: 'منظف أرضيات 2 لتر',
+    price: '2.750',
+    category: 'منظفات',
+    supplier: 'شركة الصفاء',
+    units: [{ name: 'كرتونة', factor: '8' }],
+  },
+  {
+    barcode: '9900000000073',
+    name: 'مناديل ورقية',
+    price: '0.600',
+    category: 'منظفات',
+    supplier: 'شركة الصفاء',
+    units: [{ name: 'صندوق', factor: '40' }],
+  },
+  {
+    barcode: '9900000000080',
+    name: 'مفك براغي صغير',
+    price: '1.900',
+    category: 'أدوات',
+    supplier: 'مؤسسة الأدوات',
+  },
+  {
+    barcode: '9900000000097',
+    name: 'مطرقة 500 غرام',
+    price: '5.250',
+    category: 'أدوات',
+    supplier: 'مؤسسة الأدوات',
+  },
+  {
+    barcode: '9900000000103',
+    name: 'بطارية AA (حبة)',
+    price: '0.400',
+    category: 'أدوات',
+    supplier: 'مؤسسة الأدوات',
+    units: [
+      { name: 'علبة', factor: '4' },
+      { name: 'كرتونة', factor: '48' },
+    ],
+  },
+  {
+    barcode: '9900000000110',
+    name: 'جبنة مثلثات (علبة)',
+    price: '1.100',
+    category: 'مبردات',
+    supplier: 'شركة الألبان',
+    units: [{ name: 'كرتونة', factor: '12' }],
+  },
+  {
+    barcode: '9900000000127',
+    name: 'لبن 1 لتر',
+    price: '0.950',
+    category: 'مبردات',
+    supplier: 'شركة الألبان',
+    units: [{ name: 'كرتونة', factor: '12' }],
+  },
+];
+
 export const DEMO_WAREHOUSES: readonly DemoWarehouse[] = [
   {
     code: 'MAIN',
@@ -55,12 +170,12 @@ export const DEMO_ROLES: readonly DemoRole[] = [
   {
     name: 'مشرف جرد',
     description: 'يتابع الجرد ويطّلع على الأدوار',
-    permissions: ['identity.role.read', 'inventory.warehouse.read'],
+    permissions: ['identity.role.read', 'inventory.warehouse.read', 'inventory.item.read'],
   },
   {
     name: 'موظف جرد',
     description: 'ينفّذ العدّ الميداني',
-    permissions: ['inventory.warehouse.read'],
+    permissions: ['inventory.warehouse.read', 'inventory.item.read'],
   },
 ];
 

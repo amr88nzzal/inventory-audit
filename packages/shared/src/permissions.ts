@@ -16,6 +16,10 @@ export const PERMISSIONS = [
   'inventory.warehouse.create',
   'inventory.warehouse.update',
   'inventory.warehouse.delete',
+  'inventory.item.read',
+  'inventory.item.create',
+  'inventory.item.update',
+  'inventory.item.delete',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

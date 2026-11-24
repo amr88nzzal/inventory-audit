@@ -2,6 +2,7 @@ import {
   DEMO_ACCOUNTS,
   DEMO_COMPANY_CODE,
   DEMO_COMPANY_NAME,
+  DEMO_ITEMS,
   DEMO_PASSWORD,
   DEMO_ROLES,
   DEMO_WAREHOUSES,
@@ -105,6 +106,56 @@ const seedWarehouses = async (trx: Trx, companyId: string): Promise<Map<string, 
   return ids;
 };
 
+// طبقة المرحلة 2ب: الأصناف بالباركود (آمنة للإعادة: الصنف الموجود يبقى كما عدّله المستخدم).
+// Phase 2b layer: items by barcode (repeat-safe: an existing item stays as the user edited it).
+const seedItems = async (trx: Trx, companyId: string): Promise<void> => {
+  for (const i of DEMO_ITEMS) {
+    const found = await trx
+      .selectFrom('items')
+      .select('id')
+      .where('barcode', '=', i.barcode)
+      .where('deleted_at', 'is', null)
+      .executeTakeFirst();
+    if (found) continue;
+    const id = newId();
+    await trx
+      .insertInto('items')
+      .values({
+        id,
+        company_id: companyId,
+        barcode: i.barcode,
+        sku: null,
+        name: i.name,
+        search_text: normalizeSearch(`${i.barcode} ${i.name} ${i.category} ${i.supplier}`),
+        price: i.price,
+        supplier: i.supplier,
+        category: i.category,
+        account_no: null,
+        base_unit: i.baseUnit ?? 'قطعة',
+        tolerance_pct: null,
+        created_by: null,
+        updated_by: null,
+        deleted_at: null,
+      })
+      .execute();
+    if (i.units?.length) {
+      await trx
+        .insertInto('item_units')
+        .values(
+          i.units.map((u) => ({
+            id: newId(),
+            company_id: companyId,
+            item_id: id,
+            name: u.name,
+            factor: u.factor,
+            created_by: null,
+          })),
+        )
+        .execute();
+    }
+  }
+};
+
 // يضبط نطاق مستخدم تجريبي (فارغ = كل المستودعات). Sets a demo user's scope (empty = every warehouse).
 const setScope = async (
   trx: Trx,
@@ -151,6 +202,7 @@ export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
     for (const r of DEMO_ROLES) roleIds.set(r.name, await ensureRole(trx, companyId, r, null));
 
     const warehouseIds = await seedWarehouses(trx, companyId);
+    await seedItems(trx, companyId);
 
     for (const a of DEMO_ACCOUNTS) {
       const existing = await trx

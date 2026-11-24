@@ -42,11 +42,12 @@ export {
   DEMO_ACCOUNTS,
   DEMO_COMPANY_CODE,
   DEMO_COMPANY_NAME,
+  DEMO_ITEMS,
   DEMO_PASSWORD,
   DEMO_ROLES,
   DEMO_WAREHOUSES,
 } from './demo';
-export type { DemoAccount, DemoRole, DemoWarehouse } from './demo';
+export type { DemoAccount, DemoItem, DemoRole, DemoWarehouse } from './demo';
 export {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -74,3 +75,13 @@ export type {
   UpdateWarehouseInput,
   WarehouseListQuery,
 } from './warehouses';
+export { toBaseQuantity, DECIMAL_PATTERN } from './units';
+export {
+  BARCODE_PATTERN,
+  createItemSchema,
+  ITEM_SORTS,
+  itemListQuerySchema,
+  itemUnitSchema,
+  updateItemSchema,
+} from './items';
+export type { CreateItemInput, ItemListQuery, ItemUnitInput, UpdateItemInput } from './items';

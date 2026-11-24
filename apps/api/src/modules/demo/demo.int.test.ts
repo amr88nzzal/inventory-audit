@@ -1,6 +1,12 @@
 import request from 'supertest';
 import { sql } from 'kysely';
-import { DEMO_ACCOUNTS, DEMO_COMPANY_CODE, DEMO_PASSWORD, DEMO_ROLES } from '@inventory/shared';
+import {
+  DEMO_ACCOUNTS,
+  DEMO_ITEMS,
+  DEMO_COMPANY_CODE,
+  DEMO_PASSWORD,
+  DEMO_ROLES,
+} from '@inventory/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../app';
 import { withPlatform, withTenant } from '../../db';
@@ -116,6 +122,31 @@ describe('warehouses layer', () => {
     expect(await codes('demo.supervisor')).toEqual(['BR1', 'COLD', 'MAIN']);
     expect(await codes('demo.auditor1')).toEqual(['MAIN']);
     expect(await codes('demo.auditor2')).toEqual(['BR1']);
+  });
+});
+
+describe('items layer', () => {
+  it('seeds the items once with their units, readable by the auditors, scannable by barcode', async () => {
+    const r = await seedDemo(deps());
+    await seedDemo(deps());
+    const rows = await withTenant(t.db, { companyId: r.companyId }, async ({ trx }) => ({
+      items: await trx.selectFrom('items').select('id').where('deleted_at', 'is', null).execute(),
+      units: await trx.selectFrom('item_units').select('id').execute(),
+    }));
+    expect(rows.items).toHaveLength(DEMO_ITEMS.length);
+    expect(rows.units).toHaveLength(DEMO_ITEMS.reduce((n, i) => n + (i.units?.length ?? 0), 0));
+    const token = (await login('demo.auditor1')).body.data.accessToken as string;
+    const res = await request(app)
+      .get('/api/v1/items/by-barcode/9900000000028')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.units.map((u: { name: string }) => u.name)).toEqual(['كرتونة', 'باليت']);
+    // لا يكتب الموظف. The auditor cannot write.
+    const write = await request(app)
+      .post('/api/v1/items')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ barcode: 'X1', name: 'x' });
+    expect(write.status).toBe(403);
   });
 });
 
