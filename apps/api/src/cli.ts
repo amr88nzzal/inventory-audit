@@ -1,5 +1,5 @@
 import { loadConfig } from './config';
-import { createDb } from './db';
+import { createDb, provisionAppLogin, runMigrations } from './db';
 import { resetDemo, seedDemo } from './modules/demo';
 import { createPlatformAdmin, resetPlatformAdmin } from './modules/platform';
 
@@ -11,10 +11,32 @@ import { createPlatformAdmin, resetPlatformAdmin } from './modules/platform';
 // The password is read from the environment, not the command line, so it never lands in shell history.
 
 const USAGE =
-  'Usage: PLATFORM_CLI_PASSWORD=... node dist/cli.js <create-platform-admin|reset-platform-admin> <username>\n       node dist/cli.js <seed-demo|reset-demo>';
+  'Usage: PLATFORM_CLI_PASSWORD=... node dist/cli.js <create-platform-admin|reset-platform-admin> <username>\n       node dist/cli.js <seed-demo|reset-demo>\n       DATABASE_ADMIN_URL=... [APP_DB_PASSWORD=...] node dist/cli.js <migrate|post-migrate>';
 
 const main = async (): Promise<number> => {
   const [command, username] = process.argv.slice(2);
+  // أوامر النشر (تعمل بحساب المالك في حاوية migrate): migrate ثم post-migrate. آمنة لإعادة التشغيل.
+  // Deploy commands (run as the owner in the migrate container): migrate, then post-migrate. Safe to re-run.
+  if (command === 'migrate') {
+    const url = process.env['DATABASE_ADMIN_URL'];
+    if (!url) throw new Error('DATABASE_ADMIN_URL is required');
+    const result = await runMigrations(url);
+    console.log(`migrate: ${JSON.stringify(result)}`);
+    return 0;
+  }
+  if (command === 'post-migrate') {
+    const url = process.env['DATABASE_ADMIN_URL'];
+    const password = process.env['APP_DB_PASSWORD'];
+    if (!url || !password) throw new Error('DATABASE_ADMIN_URL and APP_DB_PASSWORD are required');
+    const db = createDb(url, { max: 1 });
+    try {
+      await provisionAppLogin(db, password);
+      console.log('post-migrate: app login role configured');
+      return 0;
+    } finally {
+      await db.destroy();
+    }
+  }
   // أوامر الشركة التجريبية لا تحتاج كلمة مرور (كلمتها معروفة ومنشورة في الدليل).
   // Demo commands need no password (the demo password is public, in the guide).
   if (command === 'seed-demo' || command === 'reset-demo') {

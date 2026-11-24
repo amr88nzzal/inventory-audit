@@ -3,6 +3,7 @@
 export { createDb, newId } from './client';
 export { runMigrations } from './migrate';
 export type { MigrationResult } from './migrate';
+export { APP_LOGIN_ROLE, provisionAppLogin } from './login-role';
 export { enterTenant, lookupCompanyId, withPlatform, withTenant } from './tenant';
 export type { TenantContext } from './tenant';
 export type { Company, Database, NewUser, User, UserUpdate } from './schema';

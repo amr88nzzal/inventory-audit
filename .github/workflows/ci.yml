@@ -66,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -f apps/api/Dockerfile -t inventory-api:ci .
+        run: docker build -f infra/Dockerfile.api -t inventory-api:ci .
       - name: Start Postgres
         run: |
           docker network create ci
@@ -126,3 +126,53 @@ jobs:
             inventory-api:ci; then
             echo "expected a startup failure with a placeholder JWT_SECRET"; exit 1
           fi
+      - name: Production compose stack (migrate, least-privilege login, gateway, backup)
+        run: |
+          # نشغّل ملف الإنتاج نفسه كما على الخادم: migrate ثم api خلف gateway، وحساب دخول بلا صلاحيات.
+          # Run the very production compose file as on the server: migrate, then api behind the gateway, with a privilege-less login.
+          docker rm -f api pg >/dev/null 2>&1 || true
+          cat > "$RUNNER_TEMP/stack.env" <<ENV
+          POSTGRES_USER=inventory
+          POSTGRES_PASSWORD=$(openssl rand -hex 24)
+          POSTGRES_DB=inventory
+          APP_DB_PASSWORD=$(openssl rand -hex 24)
+          JWT_SECRET=$JWT_SECRET
+          ENCRYPTION_KEYS=$ENCRYPTION_KEYS
+          ENCRYPTION_KEY_ID=k1
+          GATEWAY_PORT=18080
+          BACKUP_PASSPHRASE_FILE=$RUNNER_TEMP/backup.passphrase
+          ENV
+          openssl rand -base64 32 > "$RUNNER_TEMP/backup.passphrase"
+          mkdir -p "$RUNNER_TEMP/rclone"; echo "RCLONE_CONFIG_DIR=$RUNNER_TEMP/rclone" >> "$RUNNER_TEMP/stack.env"
+          C="docker compose -f infra/docker-compose.yml --env-file $RUNNER_TEMP/stack.env"
+          echo "C=$C" >> "$GITHUB_ENV"
+          $C --profile backup up -d --build
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18080/api/v1/health; then echo; break; fi
+            if [ "$i" = 60 ]; then $C logs; exit 1; fi
+            sleep 2
+          done
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/v1/roles)
+          [ "$code" = 401 ] || { echo "expected 401 through the gateway, got $code"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)
+          [ "$code" = 404 ] || { echo "expected 404 for the root, got $code"; exit 1; }
+          curl -sI http://127.0.0.1:18080/api/v1/health | grep -qi 'x-content-type-options: nosniff' || { echo "security headers missing"; exit 1; }
+      - name: Stack works as the privilege-less login (demo seed, sign-in, no raw access)
+        run: |
+          $C exec -T api node dist/cli.js seed-demo
+          token=$(curl -fsS -X POST http://127.0.0.1:18080/api/v1/auth/login \
+            -H 'content-type: application/json' \
+            -d '{"companyCode":"demo","username":"demo.admin","password":"Demo-Inventory-2026"}' | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4)
+          [ -n "$token" ] || { echo "demo sign-in failed"; $C logs api; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" http://127.0.0.1:18080/api/v1/roles)
+          [ "$code" = 200 ] || { echo "expected 200 for the demo admin, got $code"; exit 1; }
+          # الحساب بلا صلاحيات بذاته: أي استعلام مباشر يفشل. The login holds nothing itself: a raw query must fail.
+          out=$($C exec -T -e PGPASSWORD="$(grep ^APP_DB_PASSWORD "$RUNNER_TEMP/stack.env" | cut -d= -f2)" postgres psql -h localhost -U inventory_login -d inventory -tAc "select count(*) from users" 2>&1 || true)
+          echo "$out" | grep -q 'permission denied' || { echo "expected permission denied for a raw query, got: $out"; exit 1; }
+          # إعادة تشغيل migrate آمنة (idempotent). Re-running migrate is safe.
+          $C run --rm migrate
+      - name: Encrypted backup and restore verification
+        run: |
+          $C exec -T backup /opt/backup/backup.sh
+          $C exec -T backup /opt/backup/restore-verify.sh
+          $C down -v

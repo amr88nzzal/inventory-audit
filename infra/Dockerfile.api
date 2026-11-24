@@ -1,5 +1,5 @@
-# البناء من جذر المستودع: docker build -f apps/api/Dockerfile .
-# Build from the repo root: docker build -f apps/api/Dockerfile .
+# البناء من جذر المستودع: docker build -f infra/Dockerfile.api .
+# Build from the repo root: docker build -f infra/Dockerfile.api .
 #
 # الصور الأساسية عبر مرآة ECR لتجنب حدّ 429 في Docker Hub، وهي متعددة المعماريات (arm64 مدعوم).
 # Base images come from the ECR mirror to avoid Docker Hub 429s; multi-arch, so arm64 works.
