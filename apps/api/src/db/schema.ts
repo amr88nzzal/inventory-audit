@@ -84,6 +84,32 @@ export interface UserRolesTable {
   created_by: string | null;
 }
 
+export interface WarehousesTable extends AuditColumns {
+  id: string;
+  company_id: string;
+  code: string;
+  name: string;
+  search_text: string;
+  active: Generated<boolean>;
+}
+
+export interface LocationsTable extends AuditColumns {
+  id: string;
+  company_id: string;
+  warehouse_id: string;
+  code: string;
+  name: string;
+  active: Generated<boolean>;
+}
+
+export interface UserWarehousesTable {
+  user_id: string;
+  warehouse_id: string;
+  company_id: string;
+  created_at: DefaultedTimestamp;
+  created_by: string | null;
+}
+
 export interface PlatformAdminsTable {
   id: string;
   username: string;
@@ -110,6 +136,9 @@ export interface Database {
   roles: RolesTable;
   role_permissions: RolePermissionsTable;
   user_roles: UserRolesTable;
+  warehouses: WarehousesTable;
+  locations: LocationsTable;
+  user_warehouses: UserWarehousesTable;
   platform_admins: PlatformAdminsTable;
 }
 
