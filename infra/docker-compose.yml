@@ -1,0 +1,122 @@
+# التشغيل: cp .env.example .env ثم عدّل القيم، ثم:
+#   docker compose -f infra/docker-compose.yml --env-file .env up -d --build
+# Run: cp .env.example .env, edit the values, then the command above.
+name: inventory
+services:
+  postgres:
+    image: public.ecr.aws/docker/library/postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [internal]
+    # لا منافذ منشورة: القاعدة داخل الشبكة الخاصة فقط. No published ports: the database stays on the private network.
+
+  # خطوة التهجير (تعمل مرة عند كل نشر ثم تنتهي)؛ الـ API ينتظر نجاحها.
+  # يهجّر بحساب المالك ثم يضبط حساب دخول التطبيق inventory_login (بلا صلاحيات بذاته؛ يبدّل الدور داخل withTenant).
+  # The migration step (runs once per deploy then exits); the API waits for it. It migrates as the owner, then
+  # configures the app's login account inventory_login (no privileges of its own; it switches role inside withTenant).
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: ['sh', '-c', 'node dist/cli.js migrate && node dist/cli.js post-migrate']
+    environment:
+      DATABASE_ADMIN_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    networks: [internal]
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # التطبيق يتصل بحساب inventory_login (ليس المالك) فتسري عليه سياسات RLS، والتهجير تم في migrate.
+      # The app connects as inventory_login (not the owner) so RLS applies; migration already ran in migrate.
+      DATABASE_URL: postgresql://inventory_login:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      RUN_MIGRATIONS: 'false'
+      JWT_SECRET: ${JWT_SECRET:?set in .env}
+      ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?set in .env}
+      ENCRYPTION_KEY_ID: ${ENCRYPTION_KEY_ID:?set in .env}
+      # أول مدير منصة (احذفهما من .env بعد أول دخول). First platform admin (remove both from .env after first sign-in).
+      PLATFORM_ADMIN_USERNAME: ${PLATFORM_ADMIN_USERNAME:-}
+      PLATFORM_ADMIN_PASSWORD: ${PLATFORM_ADMIN_PASSWORD:-}
+      PLATFORM_ALLOWED_IPS: ${PLATFORM_ALLOWED_IPS:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [internal]
+
+  # نسخ احتياطي مشفّر يومي + تحقق استعادة أسبوعي (يُفعَّل بـ: --profile backup). انظر docs/RUNBOOK.md
+  # Daily encrypted backup + weekly restore check (enable with --profile backup). See docs/RUNBOOK.md.
+  backup:
+    profiles: [backup]
+    build:
+      context: ..
+      dockerfile: infra/backup/Dockerfile
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_DIR: /backups
+      BACKUP_PASSPHRASE_FILE: /run/backup_passphrase
+      BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-02}
+      KEEP_DAILY: ${KEEP_DAILY:-7}
+      KEEP_WEEKLY: ${KEEP_WEEKLY:-4}
+      KEEP_MONTHLY: ${KEEP_MONTHLY:-6}
+      # وجهة خارج السيرفر (rclone)، مثل b2:inventory-backups؛ إعداد rclone في المجلد المركّب أدناه
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      RCLONE_CONFIG: /config/rclone/rclone.conf
+    volumes:
+      - backups:/backups
+      # ملف العبارة (مسار مطلق في .env: BACKUP_PASSPHRASE_FILE). مفتاح التشفير منفصل عن النسخ.
+      - ${BACKUP_PASSPHRASE_FILE:-/etc/inventory/backup.passphrase}:/run/backup_passphrase:ro
+      - ${RCLONE_CONFIG_DIR:-/etc/inventory/rclone}:/config/rclone:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.gateway
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${GATEWAY_PORT:-8080}:80' # يستقبل نفق Cloudflare محلياً. Receives the Cloudflare tunnel locally.
+    depends_on: [api]
+    networks: [internal]
+
+volumes:
+  pgdata:
+  backups:
+networks:
+  internal:

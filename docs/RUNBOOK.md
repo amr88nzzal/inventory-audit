@@ -5,12 +5,20 @@
 ## 1. النشر والتحديث
 
 ```bash
-cd ~/inventory-audit && git pull && docker compose up -d --build
+cd ~/inventory-audit && git pull
+docker compose -f infra/docker-compose.yml --env-file .env up -d --build   # postgres + migrate + api + gateway
 ```
 
-- `.env` خارج المستودع؛ الأمثلة في `.env.example`. الخادم يرفض الإقلاع بسرّ ضعيف أو ناقص.
-- `JWT_SECRET`: `openssl rand -base64 48`.
-- التهجيرات تُطبَّق عند الإقلاع؛ خذ نسخة احتياطية قبل أي تهجير مدمّر.
+> نفس نمط HR. اختصار اختياري: ضع `COMPOSE_FILE=infra/docker-compose.yml` في `.env` فيكفي `docker compose up -d --build`. في بقية الأوامر أدناه `docker compose` تعني الأمر الكامل بـ `-f infra/docker-compose.yml --env-file .env`.
+
+**كيف يعمل النشر:** `postgres` (داخل الشبكة فقط) ← `migrate` يعمل مرة بحساب المالك: يهجّر ثم `post-migrate` يضبط حساب `inventory_login` ← `api` ينتظر نجاح `migrate` ويتصل بـ `inventory_login` ← `gateway` (Nginx) على `127.0.0.1:${GATEWAY_PORT:-8080}` يستقبله نفق Cloudflare. الصور تُبنى على `linux/arm64`.
+
+**لماذا حساب `inventory_login`:** ليس مالكاً ولا يتجاوز RLS ولا يملك صلاحية على أي جدول بذاته؛ يبدّل الدور داخل `withTenant`/`withPlatform` فقط. أي استعلام خارجهما يفشل بـ `permission denied`. يثبته اختبار تكامل وخطوة في CI.
+
+- `.env` خارج المستودع؛ الأمثلة في `.env.example`. المتغيرات المطلوبة للإنتاج: `POSTGRES_USER` `POSTGRES_PASSWORD` `POSTGRES_DB` `APP_DB_PASSWORD` (16 حرفاً فأكثر) `JWT_SECRET` `ENCRYPTION_KEYS` `ENCRYPTION_KEY_ID`. الخادم يرفض الإقلاع بسرّ ضعيف أو ناقص.
+- `JWT_SECRET`: `openssl rand -base64 48`. `APP_DB_PASSWORD`: `openssl rand -hex 24`.
+- التهجيرات تُطبَّق في خدمة `migrate` قبل كل إقلاع (وليست عند إقلاع الـ API: `RUN_MIGRATIONS=false`). خذ نسخة احتياطية قبل أي تهجير مدمّر.
+- فشل `migrate`: `docker compose logs migrate`؛ الـ API لن يقلع حتى ينجح.
 - عند نشر ميزة تضيف صلاحية: امنحها للأدوار القائمة بعد النشر.
 
 ### أول مدير منصة (مدير المشروع)
@@ -28,9 +36,23 @@ cd ~/inventory-audit && git pull && docker compose up -d --build
 - **قبل كل عرض لمستخدم محتمل:** `docker compose exec api node dist/cli.js reset-demo` يعيدها نظيفة. لا يمسّ إلا الشركات المعلَّمة `is_demo`.
 - الدخول: رمز `demo`، والحسابات وكلمتها في `docs/guide/articles/demo-company.md`. كلمتها معروفة عمداً فلا بيانات حقيقية فيها.
 
-## 2. النسخ الاحتياطي والاستعادة (مخطَّط: المرحلة 9)
+## 2. النسخ الاحتياطي والاستعادة
 
-مطلوب: نسخ منطقي مشفّر خارج الخادم، واستعادة تجريبية موثّقة بتاريخها.
+خدمة `backup` (profile اختياري) تنفّذ يومياً عند `BACKUP_HOUR_UTC`: `pg_dump -Fc` مشفّراً AES-256 (ملف العبارة `BACKUP_PASSPHRASE_FILE`) مع بصمة SHA-256، وتدوير 7 يومي/4 أسبوعي/6 شهري، ورفع اختياري خارج الخادم عبر `rclone` إلى `BACKUP_REMOTE`. كل أحد تُجري **استعادة تحقق** إلى قاعدة مؤقتة وتفحص: عدد الجداول، التهجيرات، وجود شركات، عدم وجود مستخدمين أو أدوار بلا شركة.
+
+```bash
+openssl rand -base64 48 | sudo tee /etc/inventory/backup.passphrase >/dev/null && sudo chmod 600 /etc/inventory/backup.passphrase
+# ضع BACKUP_PASSPHRASE_FILE=/etc/inventory/backup.passphrase في .env (وانسخ العبارة خارج الخادم!)
+docker compose --profile backup up -d --build backup
+docker compose exec backup cat /backups/status-backup.json /backups/status-restore.json
+docker compose exec backup /opt/backup/backup.sh            # نسخة فورية
+docker compose exec backup /opt/backup/restore-verify.sh    # تحقق استعادة (رموز الخروج: 3 بصمة، 4 عبارة، 5–9 فحص)
+```
+
+- العبارة ومفتاح `ENCRYPTION_KEYS` **منفصلان عن النسخ**: ضياع أيهما يعني فقدان ما يخصه. احفظ نسخة خارج الخادم.
+- راقب `status-backup.json`: أقدم من 26 ساعة = تنبيه. بلا `BACKUP_REMOTE` تبقى النسخ على الخادم نفسه ولا تكفي للكوارث.
+- الاستعادة الفعلية إلى الإنتاج يدوية بقصد، بعد إيقاف `api` وبنسخة من الحالة الحالية.
+- CI يشغّل النسخ والتحقق على الحزمة نفسها في كل PR.
 
 ## 3. المراقبة (مخطَّط)
 

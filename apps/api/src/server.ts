@@ -14,8 +14,14 @@ const main = async (): Promise<void> => {
   // كي يعمل التطبيق نفسه بحساب أضعف.
   // Migrations run on boot. A separate, more privileged account is optional
   // (MIGRATION_DATABASE_URL) so the app itself can run with a weaker one.
-  const result = await runMigrations(process.env['MIGRATION_DATABASE_URL'] ?? config.databaseUrl);
-  log({ level: 'info', msg: 'migrations done', ...result });
+  // في الإنتاج تعمل حاوية migrate بحساب المالك قبل الـ API، فيضبط compose القيمة false ويتصل الـ API
+  // بحساب بلا صلاحيات لا يملك حق تغيير المخطط. الافتراضي true للتطوير.
+  // In production a migrate container runs as the owner before the API, so compose sets this to false and
+  // the API connects as a privilege-less account that cannot alter the schema. Default true for development.
+  if (process.env['RUN_MIGRATIONS'] !== 'false') {
+    const result = await runMigrations(process.env['MIGRATION_DATABASE_URL'] ?? config.databaseUrl);
+    log({ level: 'info', msg: 'migrations done', ...result });
+  }
 
   const db = createDb(config.databaseUrl);
 
