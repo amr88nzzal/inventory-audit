@@ -5,6 +5,7 @@ import { createApp } from './app';
 import { createAuthModule } from './modules/auth';
 import { createPlatformModule } from './modules/platform';
 import { createRbacModule } from './modules/rbac';
+import { createWarehousesModule } from './modules/warehouses';
 import { createTestDb, seedCompany, seedLoginUser } from './testing/test-db';
 import type { TestDb } from './testing/test-db';
 import { testConfig } from './testing/test-config';
@@ -109,6 +110,7 @@ beforeAll(async () => {
     [auth.publicRouter, '/auth'],
     [auth.protectedRouter, '/auth'],
     [rbac.router, ''],
+    [createWarehousesModule({ db: t.db, requirePermission: rbac.requirePermission }).router, ''],
   ];
   companyRoutes = companyRouters.flatMap(([r, p]) => routesOf(r, p));
   platformRoutes = [platform.publicRouter, platform.protectedRouter].flatMap((r) =>
@@ -130,7 +132,7 @@ afterAll(async () => {
 
 describe('route inventory', () => {
   it('finds the real routes (guards against an empty walk passing vacuously)', () => {
-    expect(companyRoutes.length).toBeGreaterThanOrEqual(13);
+    expect(companyRoutes.length).toBeGreaterThanOrEqual(24);
     expect(platformRoutes.length).toBeGreaterThanOrEqual(6);
   });
 

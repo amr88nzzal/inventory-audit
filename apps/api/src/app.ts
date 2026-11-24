@@ -1,3 +1,4 @@
+import { createWarehousesModule } from './modules/warehouses';
 import { randomUUID } from 'node:crypto';
 import express, { Router } from 'express';
 import type { ErrorRequestHandler, Express, RequestHandler } from 'express';
@@ -141,6 +142,9 @@ export const createApp = (deps: AppDeps): Express => {
   api.use(auth.requireAuth, auth.blockUntilPasswordChanged);
   api.use('/auth', auth.protectedRouter);
   api.use(rbac.router);
+  api.use(
+    createWarehousesModule({ db: deps.db, requirePermission: rbac.requirePermission }).router,
+  );
   const business =
     typeof deps.protectedRouters === 'function'
       ? deps.protectedRouters({ rbac })

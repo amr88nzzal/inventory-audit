@@ -89,6 +89,36 @@ describe('seedDemo', () => {
   });
 });
 
+describe('warehouses layer', () => {
+  it('seeds warehouses and locations once, and scopes the auditors', async () => {
+    const r = await seedDemo(deps());
+    await seedDemo(deps());
+    const rows = await withTenant(t.db, { companyId: r.companyId }, async ({ trx }) => ({
+      w: await trx
+        .selectFrom('warehouses')
+        .select('code')
+        .where('deleted_at', 'is', null)
+        .execute(),
+      l: await trx.selectFrom('locations').select('id').where('deleted_at', 'is', null).execute(),
+    }));
+    expect(rows.w.map((x) => x.code).sort()).toEqual(['BR1', 'COLD', 'MAIN']);
+    expect(rows.l).toHaveLength(7);
+    const tok = async (u: string) => (await login(u)).body.data.accessToken as string;
+    const codes = async (u: string) =>
+      (
+        await request(app)
+          .get('/api/v1/warehouses')
+          .set('Authorization', `Bearer ${await tok(u)}`)
+      ).body.data
+        .map((w: { code: string }) => w.code)
+        .sort();
+    expect(await codes('demo.admin')).toEqual(['BR1', 'COLD', 'MAIN']);
+    expect(await codes('demo.supervisor')).toEqual(['BR1', 'COLD', 'MAIN']);
+    expect(await codes('demo.auditor1')).toEqual(['MAIN']);
+    expect(await codes('demo.auditor2')).toEqual(['BR1']);
+  });
+});
+
 describe('resetDemo', () => {
   it('retires the old demo company and seeds a clean one; old accounts stop working', async () => {
     const before = await seedDemo(deps());

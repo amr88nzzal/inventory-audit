@@ -4,6 +4,8 @@ import {
   DEMO_COMPANY_NAME,
   DEMO_PASSWORD,
   DEMO_ROLES,
+  DEMO_WAREHOUSES,
+  normalizeSearch,
 } from '@inventory/shared';
 import { sql } from 'kysely';
 import type { Kysely } from 'kysely';
@@ -53,6 +55,79 @@ const ensureDemoCompany = (db: Kysely<Database>): Promise<{ id: string; created:
     return { id, created: true };
   });
 
+type Trx = Parameters<Parameters<typeof withTenant>[2]>[0]['trx'];
+
+// طبقة المرحلة 2: المستودعات والمواقع بالرمز (آمنة للإعادة: لا تكرار ولا تعديل لما عدّله المستخدم).
+// Phase 2 layer: warehouses and locations by code (repeat-safe: no duplicates, and user edits are kept).
+const seedWarehouses = async (trx: Trx, companyId: string): Promise<Map<string, string>> => {
+  const ids = new Map<string, string>();
+  for (const w of DEMO_WAREHOUSES) {
+    const found = await trx
+      .selectFrom('warehouses')
+      .select('id')
+      .where(sql<boolean>`lower(code) = ${w.code.toLowerCase()}`)
+      .where('deleted_at', 'is', null)
+      .executeTakeFirst();
+    const id = found?.id ?? newId();
+    ids.set(w.code, id);
+    if (!found) {
+      await trx
+        .insertInto('warehouses')
+        .values({
+          id,
+          company_id: companyId,
+          code: w.code,
+          name: w.name,
+          search_text: normalizeSearch(`${w.code} ${w.name}`),
+          created_by: null,
+          updated_by: null,
+          deleted_at: null,
+        })
+        .execute();
+    }
+    for (const l of w.locations) {
+      await trx
+        .insertInto('locations')
+        .values({
+          id: newId(),
+          company_id: companyId,
+          warehouse_id: id,
+          code: l.code,
+          name: l.name,
+          created_by: null,
+          updated_by: null,
+          deleted_at: null,
+        })
+        .onConflict((oc) => oc.doNothing())
+        .execute();
+    }
+  }
+  return ids;
+};
+
+// يضبط نطاق مستخدم تجريبي (فارغ = كل المستودعات). Sets a demo user's scope (empty = every warehouse).
+const setScope = async (
+  trx: Trx,
+  companyId: string,
+  userId: string,
+  warehouseIds: string[],
+): Promise<void> => {
+  await trx.deleteFrom('user_warehouses').where('user_id', '=', userId).execute();
+  if (warehouseIds.length > 0) {
+    await trx
+      .insertInto('user_warehouses')
+      .values(
+        warehouseIds.map((warehouse_id) => ({
+          user_id: userId,
+          warehouse_id,
+          company_id: companyId,
+          created_by: null,
+        })),
+      )
+      .execute();
+  }
+};
+
 // بذر آمن للإعادة، طبقة لكل مرحلة: كل مرحلة جديدة تضيف طبقتها هنا دون كسر ما سبق.
 // Repeat-safe seeding, one layer per phase: each new phase adds its layer here without breaking earlier ones.
 export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
@@ -74,6 +149,8 @@ export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
     const adminRoleId = await ensureAdminRole(trx, companyId, null);
     const roleIds = new Map<string, string>();
     for (const r of DEMO_ROLES) roleIds.set(r.name, await ensureRole(trx, companyId, r, null));
+
+    const warehouseIds = await seedWarehouses(trx, companyId);
 
     for (const a of DEMO_ACCOUNTS) {
       const existing = await trx
@@ -106,6 +183,12 @@ export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
       }
       const roleId = a.role === null ? adminRoleId : roleIds.get(a.role)!;
       await ensureUserRole(trx, companyId, userId, roleId, null);
+      await setScope(
+        trx,
+        companyId,
+        userId,
+        (a.warehouses ?? []).map((c) => warehouseIds.get(c)!),
+      );
     }
   });
 
