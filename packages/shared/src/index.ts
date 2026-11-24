@@ -85,3 +85,15 @@ export {
   updateItemSchema,
 } from './items';
 export type { CreateItemInput, ItemListQuery, ItemUnitInput, UpdateItemInput } from './items';
+export { CsvError, detectDelimiter, parseCsv } from './csv';
+export type { CsvDelimiter, CsvRow } from './csv';
+export {
+  IMPORT_ERRORS_CAP,
+  IMPORT_MAX_BYTES,
+  IMPORT_MAX_ROWS,
+  ImportFileError,
+  ITEMS_IMPORT_TEMPLATE,
+  normalizeNumberText,
+  parseItemsCsv,
+} from './import';
+export type { ImportField, ImportRow, ImportRowError, ParsedImport } from './import';
