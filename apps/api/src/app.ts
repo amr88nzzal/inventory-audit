@@ -58,7 +58,9 @@ const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
       ? err
       : (err as { type?: string }).type === 'entity.parse.failed'
         ? new AppError('INVALID_JSON', 400, 'Request body is not valid JSON')
-        : null;
+        : (err as { type?: string }).type === 'entity.too.large'
+          ? new AppError('PAYLOAD_TOO_LARGE', 413, 'Request body is too large')
+          : null;
   const status = normalized?.status ?? 500;
   if (!normalized) {
     // نسجّل الخطأ الحقيقي في الخادم فقط، مع معرّف الطلب للربط.

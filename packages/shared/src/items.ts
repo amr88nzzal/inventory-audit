@@ -5,17 +5,17 @@ import { DECIMAL_PATTERN } from './units';
 // الباركود: بلا فراغات، حتى 64 حرفاً (يشمل EAN/UPC/Code128 وأكواد داخلية).
 // Barcode: no whitespace, up to 64 chars (EAN/UPC/Code128 and internal codes).
 export const BARCODE_PATTERN = /^[^\s\p{Cc}]{1,64}$/u;
-const barcodeSchema = z.string().trim().regex(BARCODE_PATTERN, 'Invalid barcode');
-const nameSchema = z.string().trim().min(1).max(200);
-const shortText = z.string().trim().min(1).max(120);
+export const barcodeSchema = z.string().trim().regex(BARCODE_PATTERN, 'Invalid barcode');
+export const nameSchema = z.string().trim().min(1).max(200);
+export const shortText = z.string().trim().min(1).max(120);
 
 // مبلغ بأربع خانات عشرية كحد أقصى؛ نص لا رقم. An amount with at most 4 decimals; a string, never a number.
-const priceSchema = z
+export const priceSchema = z
   .string()
   .trim()
   .regex(/^\d{1,14}(\.\d{1,4})?$/, 'Invalid amount');
 // نسبة مئوية 0–100 بأربع خانات. A percentage 0–100 with up to 4 decimals.
-const percentSchema = z
+export const percentSchema = z
   .string()
   .trim()
   .regex(/^\d{1,3}(\.\d{1,4})?$/, 'Invalid percentage')

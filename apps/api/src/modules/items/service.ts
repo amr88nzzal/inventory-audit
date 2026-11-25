@@ -85,7 +85,7 @@ const toViews = async (trx: Trx, rows: ItemRow[]): Promise<ItemView[]> => {
 
 // نص البحث يجمع ما يبحث عنه المستخدم: الباركود والرمز والاسم والفئة والمورد.
 // The search text gathers what users look for: barcode, code, name, category and supplier.
-const searchTextOf = (v: {
+export const searchTextOf = (v: {
   barcode: string;
   sku?: string | null | undefined;
   name: string;
