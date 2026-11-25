@@ -6,6 +6,7 @@ import { createAuthModule } from './modules/auth';
 import { createPlatformModule } from './modules/platform';
 import { createItemsModule } from './modules/items';
 import { createRbacModule } from './modules/rbac';
+import { createTasksModule } from './modules/tasks';
 import { createWarehousesModule } from './modules/warehouses';
 import { createTestDb, seedCompany, seedLoginUser } from './testing/test-db';
 import type { TestDb } from './testing/test-db';
@@ -112,6 +113,14 @@ beforeAll(async () => {
     [auth.protectedRouter, '/auth'],
     [rbac.router, ''],
     [createItemsModule({ db: t.db, requirePermission: rbac.requirePermission }).router, ''],
+    [
+      createTasksModule({
+        db: t.db,
+        permissions: rbac.permissions,
+        requirePermission: rbac.requirePermission,
+      }).router,
+      '',
+    ],
     [createWarehousesModule({ db: t.db, requirePermission: rbac.requirePermission }).router, ''],
   ];
   companyRoutes = companyRouters.flatMap(([r, p]) => routesOf(r, p));

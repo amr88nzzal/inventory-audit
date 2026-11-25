@@ -102,6 +102,35 @@ export interface LocationsTable extends AuditColumns {
   active: Generated<boolean>;
 }
 
+export interface AuditTaskCountersTable {
+  company_id: string;
+  last_no: Generated<number>;
+}
+
+export interface AuditTasksTable extends AuditColumns {
+  id: string;
+  company_id: string;
+  task_no: number;
+  title: string;
+  warehouse_id: string;
+  status: Generated<'draft' | 'in_progress' | 'closed' | 'cancelled'>;
+  starts_at: Date | null;
+  blind_count: Generated<boolean>;
+  aggregate_locations: Generated<boolean>;
+  notes: string | null;
+  started_at: Date | null;
+  closed_at: Date | null;
+  cancelled_at: Date | null;
+}
+
+export interface AuditTaskAssigneesTable {
+  task_id: string;
+  user_id: string;
+  company_id: string;
+  created_at: DefaultedTimestamp;
+  created_by: string | null;
+}
+
 export interface UserWarehousesTable {
   user_id: string;
   warehouse_id: string;
@@ -168,6 +197,9 @@ export interface Database {
   user_warehouses: UserWarehousesTable;
   items: ItemsTable;
   item_units: ItemUnitsTable;
+  audit_task_counters: AuditTaskCountersTable;
+  audit_tasks: AuditTasksTable;
+  audit_task_assignees: AuditTaskAssigneesTable;
   platform_admins: PlatformAdminsTable;
 }
 

@@ -1,4 +1,5 @@
 import { createItemsModule } from './modules/items';
+import { createTasksModule } from './modules/tasks';
 import { createWarehousesModule } from './modules/warehouses';
 import { randomUUID } from 'node:crypto';
 import express, { Router } from 'express';
@@ -149,6 +150,13 @@ export const createApp = (deps: AppDeps): Express => {
     createWarehousesModule({ db: deps.db, requirePermission: rbac.requirePermission }).router,
   );
   api.use(createItemsModule({ db: deps.db, requirePermission: rbac.requirePermission }).router);
+  api.use(
+    createTasksModule({
+      db: deps.db,
+      permissions: rbac.permissions,
+      requirePermission: rbac.requirePermission,
+    }).router,
+  );
   const business =
     typeof deps.protectedRouters === 'function'
       ? deps.protectedRouters({ rbac })

@@ -170,14 +170,31 @@ export const DEMO_ROLES: readonly DemoRole[] = [
   {
     name: 'مشرف جرد',
     description: 'يتابع الجرد ويطّلع على الأدوار',
-    permissions: ['identity.role.read', 'inventory.warehouse.read', 'inventory.item.read'],
+    permissions: [
+      'identity.role.read',
+      'inventory.warehouse.read',
+      'inventory.item.read',
+      'inventory.task.read',
+      'inventory.task.read_all',
+      'inventory.task.create',
+      'inventory.task.update',
+      'inventory.task.start',
+      'inventory.task.cancel',
+    ],
   },
   {
     name: 'موظف جرد',
     description: 'ينفّذ العدّ الميداني',
-    permissions: ['inventory.warehouse.read', 'inventory.item.read'],
+    permissions: ['inventory.warehouse.read', 'inventory.item.read', 'inventory.task.read'],
   },
 ];
+
+// مهمة جرد تجريبية بصيغة مسودة تُسند لموظف المستودع الرئيسي. A demo draft task assigned to the main-warehouse auditor.
+export const DEMO_TASK = {
+  title: 'جرد المستودع الرئيسي (تجريبي)',
+  warehouse: 'MAIN',
+  assignee: 'demo.auditor1',
+} as const;
 
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { username: 'demo.admin', displayName: 'أحمد المدير', role: null },
