@@ -45,6 +45,7 @@ export {
   DEMO_ITEMS,
   DEMO_PASSWORD,
   DEMO_ROLES,
+  DEMO_TASK,
   DEMO_WAREHOUSES,
 } from './demo';
 export type { DemoAccount, DemoItem, DemoRole, DemoWarehouse } from './demo';
@@ -112,3 +113,14 @@ export {
   retryFailed,
 } from './offline-queue';
 export type { OfflineQueue, QueuedOp, ScanFilterOptions } from './offline-queue';
+export {
+  TASK_SORTS,
+  TASK_STATUSES,
+  canTransition,
+  createTaskSchema,
+  isEditable,
+  taskListQuerySchema,
+  taskTransitionSchema,
+  updateTaskSchema,
+} from './tasks';
+export type { CreateTaskInput, TaskListQuery, TaskStatus, UpdateTaskInput } from './tasks';

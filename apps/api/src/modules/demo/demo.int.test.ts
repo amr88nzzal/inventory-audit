@@ -3,6 +3,7 @@ import { sql } from 'kysely';
 import {
   DEMO_ACCOUNTS,
   DEMO_ITEMS,
+  DEMO_TASK,
   DEMO_COMPANY_CODE,
   DEMO_PASSWORD,
   DEMO_ROLES,
@@ -147,6 +148,27 @@ describe('items layer', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ barcode: 'X1', name: 'x' });
     expect(write.status).toBe(403);
+  });
+});
+
+describe('tasks layer', () => {
+  it('seeds one demo task once; only its assignee and the supervisor see it', async () => {
+    const r = await seedDemo(deps());
+    await seedDemo(deps());
+    const rows = await withTenant(t.db, { companyId: r.companyId }, ({ trx }) =>
+      trx.selectFrom('audit_tasks').select(['title', 'status']).execute(),
+    );
+    expect(rows).toEqual([{ title: DEMO_TASK.title, status: 'draft' }]);
+    const list = async (u: string) => {
+      const token = (await login(u)).body.data.accessToken as string;
+      const res = await request(app).get('/api/v1/tasks').set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(200);
+      return res.body.data.length as number;
+    };
+    expect(await list('demo.auditor1')).toBe(1);
+    expect(await list('demo.auditor2')).toBe(0);
+    expect(await list('demo.supervisor')).toBe(1);
+    expect(await list('demo.admin')).toBe(1);
   });
 });
 

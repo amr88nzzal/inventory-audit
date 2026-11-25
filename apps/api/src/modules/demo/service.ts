@@ -4,6 +4,7 @@ import {
   DEMO_COMPANY_NAME,
   DEMO_ITEMS,
   DEMO_PASSWORD,
+  DEMO_TASK,
   DEMO_ROLES,
   DEMO_WAREHOUSES,
   normalizeSearch,
@@ -181,6 +182,49 @@ const setScope = async (
 
 // بذر آمن للإعادة، طبقة لكل مرحلة: كل مرحلة جديدة تضيف طبقتها هنا دون كسر ما سبق.
 // Repeat-safe seeding, one layer per phase: each new phase adds its layer here without breaking earlier ones.
+// مهمة تجريبية واحدة (لا تُكرَّر عند إعادة البذر). One demo task (not duplicated when re-seeding).
+const seedTask = async (
+  trx: Trx,
+  companyId: string,
+  warehouseId: string,
+  assigneeId: string,
+): Promise<void> => {
+  const exists = await trx
+    .selectFrom('audit_tasks')
+    .select('id')
+    .where('title', '=', DEMO_TASK.title)
+    .where('deleted_at', 'is', null)
+    .executeTakeFirst();
+  if (exists) return;
+  const counter = await trx
+    .insertInto('audit_task_counters')
+    .values({ company_id: companyId, last_no: 1 })
+    .onConflict((oc) =>
+      oc
+        .column('company_id')
+        .doUpdateSet({ last_no: sql<number>`audit_task_counters.last_no + 1` }),
+    )
+    .returning('last_no')
+    .executeTakeFirstOrThrow();
+  const id = newId();
+  await trx
+    .insertInto('audit_tasks')
+    .values({
+      id,
+      company_id: companyId,
+      task_no: counter.last_no,
+      title: DEMO_TASK.title,
+      warehouse_id: warehouseId,
+      created_by: null,
+      updated_by: null,
+    })
+    .execute();
+  await trx
+    .insertInto('audit_task_assignees')
+    .values({ task_id: id, user_id: assigneeId, company_id: companyId, created_by: null })
+    .execute();
+};
+
 export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
   const company = await ensureDemoCompany(deps.db);
   // التجزئة خارج المعاملة (ثقيلة) وتُحسب مرة لكل حساب جديد فقط.
@@ -204,6 +248,7 @@ export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
     const warehouseIds = await seedWarehouses(trx, companyId);
     await seedItems(trx, companyId);
 
+    const userIds = new Map<string, string>();
     for (const a of DEMO_ACCOUNTS) {
       const existing = await trx
         .selectFrom('users')
@@ -233,6 +278,7 @@ export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
           })
           .execute();
       }
+      userIds.set(a.username, userId);
       const roleId = a.role === null ? adminRoleId : roleIds.get(a.role)!;
       await ensureUserRole(trx, companyId, userId, roleId, null);
       await setScope(
@@ -242,6 +288,12 @@ export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {
         (a.warehouses ?? []).map((c) => warehouseIds.get(c)!),
       );
     }
+    await seedTask(
+      trx,
+      companyId,
+      warehouseIds.get(DEMO_TASK.warehouse)!,
+      userIds.get(DEMO_TASK.assignee)!,
+    );
   });
 
   return {
