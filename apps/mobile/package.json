@@ -1,0 +1,28 @@
+{
+  "name": "@inventory/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@inventory/shared": "workspace:*",
+    "expo": "~58.0.26",
+    "expo-camera": "~58.0.14",
+    "expo-secure-store": "~58.0.3",
+    "expo-haptics": "~58.0.8",
+    "expo-status-bar": "~58.0.5",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "@react-native-async-storage/async-storage": "2.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0",
+    "@types/react": "~19.3.0"
+  }
+}

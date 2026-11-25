@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "الجرد",
+    "slug": "inventory-audit",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      ["expo-camera", { "cameraPermission": "نستعمل الكاميرا لمسح باركود الأصناف أثناء الجرد." }],
+      "expo-secure-store"
+    ],
+    "android": { "package": "com.amrodev.inventory" },
+    "ios": { "bundleIdentifier": "com.amrodev.inventory" }
+  }
+}

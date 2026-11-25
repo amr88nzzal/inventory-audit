@@ -97,3 +97,17 @@ export {
   parseItemsCsv,
 } from './import';
 export type { ImportField, ImportRow, ImportRowError, ParsedImport } from './import';
+export {
+  QUEUE_BACKOFF_CAP_MS,
+  QUEUE_MAX_ATTEMPTS,
+  backoffMs,
+  createScanGate,
+  enqueue,
+  isRetryableStatus,
+  markFailed,
+  markSent,
+  nextDue,
+  queueStats,
+  retryFailed,
+} from './offline-queue';
+export type { OfflineQueue, QueuedOp } from './offline-queue';
