@@ -14,10 +14,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  Vibration,
   View,
 } from 'react-native';
 import { createApiClient } from './src/api';
 import type { Session } from './src/api';
+import { playFeedback } from './src/feedback';
+import type { FeedbackKind } from './src/feedback';
 import { lookupFeedback } from './src/scan';
 import { addToQueue, loadQueue, runQueue } from './src/sync';
 
@@ -39,6 +42,18 @@ const store = {
 };
 
 // معرّف فريد تقريبي كافٍ للمسبار؛ للإنتاج expo-crypto (UUID). Unique enough for the spike; use expo-crypto UUIDs in production.
+const HAPTIC_TYPE = {
+  success: Haptics.NotificationFeedbackType.Success,
+  error: Haptics.NotificationFeedbackType.Error,
+  warning: Haptics.NotificationFeedbackType.Warning,
+} as const;
+const feedback = (kind: FeedbackKind): void => {
+  void playFeedback(kind, {
+    haptic: (k) => Haptics.notificationAsync(HAPTIC_TYPE[k]),
+    vibrate: (pattern) => Vibration.vibrate(pattern),
+  });
+};
+
 const newOpId = (): string =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -93,13 +108,13 @@ export const App = () => {
       api.get<{ name: string }>(`/items/by-barcode/${barcode}`),
     );
     if (fb.kind === 'found') {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      feedback('success');
       setMessage(`✔ ${fb.name} (${barcode})`);
     } else if (fb.kind === 'unknown') {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      feedback('error');
       setMessage(`✖ باركود غير معرّف: ${barcode}`);
     } else {
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      feedback('warning');
       setMessage(`حُفظ دون اتصال: ${barcode}`);
     }
   };
@@ -150,7 +165,9 @@ export const App = () => {
         <CameraView
           style={styles.camera}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'code128', 'qr'] }}
-          onBarcodeScanned={(r) => void onScan(r.data)}
+          onBarcodeScanned={(r) => {
+            onScan(r.data).catch((e: Error) => setMessage(`خطأ: ${e.message}`));
+          }}
         />
       ) : (
         <Button title="السماح بالكاميرا" onPress={() => void requestPermission()} />
@@ -168,7 +185,12 @@ export const App = () => {
           </View>
         )}
       />
-      <Button title={`مزامنة (${queue.length})`} onPress={() => void sync()} />
+      <Button
+        title={`مزامنة (${queue.length})`}
+        onPress={() => {
+          sync().catch((e: Error) => setMessage(`خطأ: ${e.message}`));
+        }}
+      />
       <Button
         title="خروج"
         onPress={() => {
