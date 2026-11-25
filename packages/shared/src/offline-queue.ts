@@ -83,13 +83,44 @@ export const queueStats = (queue: OfflineQueue): { pending: number; failed: numb
   failed: queue.filter((q) => q.status === 'failed').length,
 });
 
-// الكاميرا تقرأ الباركود نفسه عشرات المرات في الثانية؛ نقبله مرة واحدة خلال النافذة.
-// The camera reads the same barcode dozens of times a second; accept it once per window.
-export const createScanGate = (windowMs: number): ((barcode: string, now: number) => boolean) => {
-  let last: { barcode: string; at: number } | null = null;
+// مرشّح المسح: الكاميرا تقرأ الباركود نفسه عشرات المرات في الثانية وقد تخطئ في قراءة جزئية.
+// (1) لا نقبل قيمة إلا بعد قراءتها `requiredReads` مرات متتالية متقاربة (يُسقط القراءات الجزئية العابرة).
+// (2) بعد القبول لا نقبل القيمة نفسها حتى تبتعد الكاميرا عنها `releaseMs` (يمنع العدّ المزدوج بالتثبيت).
+// The scan filter: the camera reads the same barcode dozens of times a second and may misread partially.
+// (1) a value is accepted only after `requiredReads` consecutive close reads (drops fleeting partial reads).
+// (2) after acceptance the same value is ignored until the camera has left it for `releaseMs` (no double count by holding).
+export interface ScanFilterOptions {
+  requiredReads: number;
+  // أكبر فاصل بين قراءتين متتاليتين لتُعدّا متتاليتين. Largest gap for two reads to count as consecutive.
+  maxGapMs: number;
+  releaseMs: number;
+}
+export const DEFAULT_SCAN_FILTER: ScanFilterOptions = {
+  requiredReads: 2,
+  maxGapMs: 800,
+  releaseMs: 1200,
+};
+
+export const createScanFilter = (
+  options: ScanFilterOptions = DEFAULT_SCAN_FILTER,
+): ((barcode: string, now: number) => boolean) => {
+  let candidate: { value: string; count: number; at: number } | null = null;
+  let locked: { value: string; seenAt: number } | null = null;
   return (barcode, now) => {
-    if (last && last.barcode === barcode && now - last.at < windowMs) return false;
-    last = { barcode, at: now };
+    if (locked && locked.value === barcode) {
+      const away = now - locked.seenAt;
+      locked.seenAt = now;
+      // ما زالت الكاميرا على الباركود نفسه (أو عادت إليه بعد لحظة). Still on the same barcode.
+      if (away < options.releaseMs) return false;
+      locked = null;
+    }
+    candidate =
+      candidate && candidate.value === barcode && now - candidate.at <= options.maxGapMs
+        ? { value: barcode, count: candidate.count + 1, at: now }
+        : { value: barcode, count: 1, at: now };
+    if (candidate.count < options.requiredReads) return false;
+    locked = { value: barcode, seenAt: now };
+    candidate = null;
     return true;
   };
 };

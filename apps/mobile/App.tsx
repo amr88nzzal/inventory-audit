@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createScanGate } from '@inventory/shared';
+import { createScanFilter } from '@inventory/shared';
 import type { QueuedOp } from '@inventory/shared';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { createApiClient } from './src/api';
 import type { Session } from './src/api';
+import { lookupFeedback } from './src/scan';
 import { addToQueue, loadQueue, runQueue } from './src/sync';
 
 // مسبار (س-1): شاشتان فقط للتحقق من الكاميرا والطابور والمزامنة على جهاز حقيقي، لا واجهة نهائية.
@@ -55,7 +56,7 @@ export const App = () => {
   const [message, setMessage] = useState('');
   const [queue, setQueue] = useState<readonly QueuedOp[]>([]);
   const [permission, requestPermission] = useCameraPermissions();
-  const gate = useRef(createScanGate(1500));
+  const gate = useRef(createScanFilter());
 
   useEffect(() => {
     void api.isSignedIn().then(setSignedIn);
@@ -78,7 +79,8 @@ export const App = () => {
 
   const onScan = async (barcode: string): Promise<void> => {
     if (!gate.current(barcode, Date.now())) return;
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // الحفظ في الطابور أولاً وفي كل حال؛ البحث الفوري للتغذية الراجعة فقط.
+    // Queue first, always; the instant lookup is feedback only.
     setQueue(
       await addToQueue(
         AsyncStorage,
@@ -86,7 +88,20 @@ export const App = () => {
         Date.now(),
       ),
     );
-    setMessage(`سُجّل ${barcode}`);
+    setMessage(`سُجّل ${barcode} …`);
+    const fb = await lookupFeedback(() =>
+      api.get<{ name: string }>(`/items/by-barcode/${barcode}`),
+    );
+    if (fb.kind === 'found') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setMessage(`✔ ${fb.name} (${barcode})`);
+    } else if (fb.kind === 'unknown') {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setMessage(`✖ باركود غير معرّف: ${barcode}`);
+    } else {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setMessage(`حُفظ دون اتصال: ${barcode}`);
+    }
   };
 
   if (signedIn === null) return <Text style={styles.center}>…</Text>;

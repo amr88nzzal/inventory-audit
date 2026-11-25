@@ -101,7 +101,8 @@ export {
   QUEUE_BACKOFF_CAP_MS,
   QUEUE_MAX_ATTEMPTS,
   backoffMs,
-  createScanGate,
+  DEFAULT_SCAN_FILTER,
+  createScanFilter,
   enqueue,
   isRetryableStatus,
   markFailed,
@@ -110,4 +111,4 @@ export {
   queueStats,
   retryFailed,
 } from './offline-queue';
-export type { OfflineQueue, QueuedOp } from './offline-queue';
+export type { OfflineQueue, QueuedOp, ScanFilterOptions } from './offline-queue';
