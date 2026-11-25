@@ -3,7 +3,7 @@ import {
   QUEUE_BACKOFF_CAP_MS,
   QUEUE_MAX_ATTEMPTS,
   backoffMs,
-  createScanGate,
+  createScanFilter,
   enqueue,
   isRetryableStatus,
   markFailed,
@@ -72,19 +72,62 @@ describe('offline queue', () => {
   });
 });
 
-describe('scan gate', () => {
-  it('drops the same barcode inside the window and accepts it after', () => {
-    const gate = createScanGate(1500);
-    expect(gate('111', 0)).toBe(true);
-    expect(gate('111', 100)).toBe(false);
-    expect(gate('111', 1499)).toBe(false);
-    expect(gate('111', 1500)).toBe(true);
+describe('scan filter', () => {
+  const opts = { requiredReads: 2, maxGapMs: 800, releaseMs: 1200 };
+
+  it('needs two consecutive close reads; a single or spaced read is not enough', () => {
+    const f = createScanFilter(opts);
+    expect(f('111', 0)).toBe(false);
+    expect(f('111', 100)).toBe(true);
+    const g = createScanFilter(opts);
+    expect(g('111', 0)).toBe(false);
+    // الفاصل أكبر من 800ms: يبدأ العدّ من جديد. A gap over 800ms restarts the count.
+    expect(g('111', 2000)).toBe(false);
+    expect(g('111', 2100)).toBe(true);
   });
 
-  it('accepts a different barcode immediately, and the first again afterwards', () => {
-    const gate = createScanGate(1500);
-    expect(gate('111', 0)).toBe(true);
-    expect(gate('222', 10)).toBe(true);
-    expect(gate('111', 20)).toBe(true);
+  it('drops a fleeting partial read between two good reads', () => {
+    const f = createScanFilter(opts);
+    expect(f('9900000000011', 0)).toBe(false);
+    expect(f('990000', 50)).toBe(false);
+    expect(f('9900000000011', 100)).toBe(false);
+    expect(f('9900000000011', 150)).toBe(true);
+  });
+
+  it('does not accept the same barcode again while the camera stays on it', () => {
+    const f = createScanFilter(opts);
+    f('111', 0);
+    expect(f('111', 50)).toBe(true);
+    for (let t = 100; t < 5000; t += 100) expect(f('111', t)).toBe(false);
+  });
+
+  it('accepts it again after the camera has left it', () => {
+    const f = createScanFilter(opts);
+    f('111', 0);
+    expect(f('111', 50)).toBe(true);
+    f('111', 100);
+    // غابت الكاميرا 2 ثانية ثم عادت. The camera left for 2s and came back.
+    expect(f('111', 2100)).toBe(false);
+    expect(f('111', 2150)).toBe(true);
+  });
+
+  it('a glitch read of another value does not unlock the held barcode', () => {
+    const f = createScanFilter(opts);
+    f('111', 0);
+    expect(f('111', 50)).toBe(true);
+    expect(f('999', 100)).toBe(false);
+    expect(f('111', 150)).toBe(false);
+    expect(f('111', 200)).toBe(false);
+  });
+
+  it('accepts a different barcode right after two reads of it', () => {
+    const f = createScanFilter(opts);
+    f('111', 0);
+    expect(f('111', 50)).toBe(true);
+    expect(f('222', 100)).toBe(false);
+    expect(f('222', 150)).toBe(true);
+    // والعودة للأول بعد قراءتين تُحسب مسحاً جديداً. Going back to the first, after two reads, is a new scan.
+    expect(f('111', 200)).toBe(false);
+    expect(f('111', 250)).toBe(true);
   });
 });
