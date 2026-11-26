@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createScanFilter } from '@inventory/shared';
 import type { QueuedOp } from '@inventory/shared';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
@@ -22,6 +23,7 @@ import type { Session } from './src/api';
 import { playFeedback } from './src/feedback';
 import type { FeedbackKind } from './src/feedback';
 import { lookupFeedback } from './src/scan';
+import { buildScanOp, parseQuantity, sendScanOp } from './src/scan-events';
 import { addToQueue, loadQueue, runQueue } from './src/sync';
 
 // مسبار (س-1): شاشتان فقط للتحقق من الكاميرا والطابور والمزامنة على جهاز حقيقي، لا واجهة نهائية.
@@ -41,7 +43,6 @@ const store = {
   },
 };
 
-// معرّف فريد تقريبي كافٍ للمسبار؛ للإنتاج expo-crypto (UUID). Unique enough for the spike; use expo-crypto UUIDs in production.
 const HAPTIC_TYPE = {
   success: Haptics.NotificationFeedbackType.Success,
   error: Haptics.NotificationFeedbackType.Error,
@@ -54,8 +55,12 @@ const feedback = (kind: FeedbackKind): void => {
   });
 };
 
-const newOpId = (): string =>
-  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+interface TaskLite {
+  id: string;
+  taskNo: number;
+  title: string;
+}
+const TASK_KEY = 'inventory.task.current';
 
 export const App = () => {
   const api = useMemo(
@@ -72,21 +77,40 @@ export const App = () => {
   const [queue, setQueue] = useState<readonly QueuedOp[]>([]);
   const [permission, requestPermission] = useCameraPermissions();
   const gate = useRef(createScanFilter());
+  // المهمة الجارية والكمية للمسحة التالية. The current task and the quantity for the next scan.
+  const [tasks, setTasks] = useState<TaskLite[]>([]);
+  const [task, setTask] = useState<TaskLite | null>(null);
+  const [qty, setQty] = useState('1');
 
   useEffect(() => {
     void api.isSignedIn().then(setSignedIn);
     void loadQueue(AsyncStorage).then(setQueue);
+    // آخر مهمة مختارة تبقى متاحة دون اتصال. The last chosen task stays available offline.
+    void AsyncStorage.getItem(TASK_KEY).then((raw) => {
+      if (raw) setTask(JSON.parse(raw) as TaskLite);
+    });
   }, [api]);
+
+  const loadTasks = async (): Promise<void> => {
+    const list = await api.get<TaskLite[]>('/tasks?status=in_progress&pageSize=100');
+    setTasks(list);
+    if (list.length === 1 && !task) await chooseTask(list[0] as TaskLite);
+    if (list.length === 0) setMessage('لا مهام جارية مسندة إليك');
+  };
+  const chooseTask = async (t: TaskLite): Promise<void> => {
+    setTask(t);
+    await AsyncStorage.setItem(TASK_KEY, JSON.stringify(t));
+  };
+  useEffect(() => {
+    if (signedIn) loadTasks().catch((e: Error) => setMessage(`تعذّر تحميل المهام: ${e.message}`));
+  }, [signedIn]);
 
   const sync = async (): Promise<void> => {
     const r = await runQueue({
       storage: AsyncStorage,
       now: () => Date.now(),
-      // المسبار: يتحقق أن الصنف موجود. الإرسال الحقيقي (أحداث المسح) يأتي مع المرحلة 3.
-      // Spike: checks the item exists. The real send (scan events) arrives with phase 3.
-      send: async (op) => {
-        await api.get(`/items/by-barcode/${(op.payload as { barcode: string }).barcode}`);
-      },
+      // إرسال حقيقي: معرّف العملية = معرّف الحدث، فالتكرار آمن. Real send: op id = event id, so a resend is safe.
+      send: (op) => sendScanOp(api, op),
     });
     setQueue(await loadQueue(AsyncStorage));
     setMessage(`أُرسل ${r.sent} · فشل ${r.failed} · متبقٍ ${r.remaining}`);
@@ -94,15 +118,33 @@ export const App = () => {
 
   const onScan = async (barcode: string): Promise<void> => {
     if (!gate.current(barcode, Date.now())) return;
+    if (!task) {
+      feedback('warning');
+      setMessage('اختر مهمة أولاً');
+      return;
+    }
+    const quantity = parseQuantity(qty);
+    if (!quantity) {
+      feedback('warning');
+      setMessage('كمية غير صالحة');
+      return;
+    }
     // الحفظ في الطابور أولاً وفي كل حال؛ البحث الفوري للتغذية الراجعة فقط.
     // Queue first, always; the instant lookup is feedback only.
     setQueue(
       await addToQueue(
         AsyncStorage,
-        { id: newOpId(), kind: 'scan', payload: { barcode } },
+        buildScanOp({
+          id: Crypto.randomUUID(),
+          taskId: task.id,
+          barcode,
+          quantity,
+          now: Date.now(),
+        }),
         Date.now(),
       ),
     );
+    setQty('1');
     setMessage(`سُجّل ${barcode} …`);
     const fb = await lookupFeedback(() =>
       api.get<{ name: string }>(`/items/by-barcode/${barcode}`),
@@ -159,8 +201,42 @@ export const App = () => {
       </SafeAreaView>
     );
 
+  if (!task)
+    return (
+      <SafeAreaView style={styles.page}>
+        <Text>اختر مهمة الجرد</Text>
+        {tasks.map((t) => (
+          <Button
+            key={t.id}
+            title={`#${t.taskNo} ${t.title}`}
+            onPress={() => {
+              void chooseTask(t);
+            }}
+          />
+        ))}
+        <Button
+          title="تحديث"
+          onPress={() => {
+            loadTasks().catch((e: Error) => setMessage(e.message));
+          }}
+        />
+        <Text>{message}</Text>
+      </SafeAreaView>
+    );
+
   return (
     <SafeAreaView style={styles.page}>
+      <Text>
+        #{task.taskNo} {task.title}
+      </Text>
+      <TextInput
+        style={styles.input}
+        value={qty}
+        keyboardType="decimal-pad"
+        onChangeText={setQty}
+        placeholder="الكمية"
+        accessibilityLabel="الكمية"
+      />
       {permission?.granted ? (
         <CameraView
           style={styles.camera}
@@ -179,7 +255,8 @@ export const App = () => {
         renderItem={({ item }) => (
           <View>
             <Text>
-              {(item.payload as { barcode: string }).barcode} · {item.status}
+              {(item.payload as { barcode: string }).barcode} ×
+              {(item.payload as { quantity: string }).quantity} · {item.status}
               {item.lastError ? ` (${item.lastError})` : ''}
             </Text>
           </View>
@@ -192,9 +269,21 @@ export const App = () => {
         }}
       />
       <Button
+        title="تغيير المهمة"
+        onPress={() => {
+          setTask(null);
+          void AsyncStorage.removeItem(TASK_KEY);
+          loadTasks().catch((e: Error) => setMessage(e.message));
+        }}
+      />
+      <Button
         title="خروج"
         onPress={() => {
-          void api.logout().then(() => setSignedIn(false));
+          void api.logout().then(() => {
+            setTask(null);
+            void AsyncStorage.removeItem(TASK_KEY);
+            setSignedIn(false);
+          });
         }}
       />
       <StatusBar style="auto" />
