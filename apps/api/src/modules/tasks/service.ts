@@ -35,16 +35,18 @@ export interface TaskView {
   startedAt: string | null;
   closedAt: string | null;
   cancelledAt: string | null;
+  balancesCount: number;
+  balancesUploadedAt: string | null;
   assignees: { userId: string; displayName: string }[];
   version: number;
   createdAt: string;
 }
 
-type Trx = Transaction<Database>;
+export type Trx = Transaction<Database>;
 const notFound = (): AppError => new AppError('NOT_FOUND', 404, 'Task not found');
 const iso = (d: Date | string | null): string | null => (d ? new Date(d).toISOString() : null);
 
-interface Row {
+export interface Row {
   id: string;
   task_no: number;
   title: string;
@@ -58,6 +60,8 @@ interface Row {
   started_at: Date | null;
   closed_at: Date | null;
   cancelled_at: Date | null;
+  balances_count: number;
+  balances_uploaded_at: Date | null;
   version: number;
   created_at: Date;
 }
@@ -80,6 +84,8 @@ const baseSelect = (trx: Trx) =>
       't.started_at',
       't.closed_at',
       't.cancelled_at',
+      't.balances_count',
+      't.balances_uploaded_at',
       't.version',
       't.created_at',
     ])
@@ -121,6 +127,8 @@ const toView = (r: Row, assignees: TaskView['assignees']): TaskView => ({
   startedAt: iso(r.started_at),
   closedAt: iso(r.closed_at),
   cancelledAt: iso(r.cancelled_at),
+  balancesCount: r.balances_count,
+  balancesUploadedAt: iso(r.balances_uploaded_at),
   assignees,
   version: r.version,
   createdAt: iso(r.created_at) as string,
@@ -128,7 +136,12 @@ const toView = (r: Row, assignees: TaskView['assignees']): TaskView => ({
 
 // الرؤية: نطاق المستودعات للجميع، ومن لا يملك read_all لا يرى إلا ما أُسند إليه. غير المرئي = 404 (لا نكشف وجوده).
 // Visibility: warehouse scope for everyone; without read_all you see only what is assigned to you. Invisible = 404 (existence is not revealed).
-const loadVisible = async (trx: Trx, actor: Actor, id: string, seeAll: boolean): Promise<Row> => {
+export const loadVisible = async (
+  trx: Trx,
+  actor: Actor,
+  id: string,
+  seeAll: boolean,
+): Promise<Row> => {
   const scope = await scopeOf(trx, actor.userId);
   let q = baseSelect(trx).where('t.id', '=', id);
   if (scope) q = q.where('t.warehouse_id', 'in', scope);
