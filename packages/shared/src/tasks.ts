@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { paginationSchema } from './pagination';
+import { DECIMAL_PATTERN } from './units';
 
 export const TASK_STATUSES = ['draft', 'in_progress', 'closed', 'cancelled'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
@@ -67,3 +68,14 @@ export const taskListQuerySchema = paginationSchema.extend({
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TaskListQuery = z.infer<typeof taskListQuerySchema>;
+
+export const RESULT_SORTS = ['difference', 'name', 'barcode'] as const;
+export const RESULT_FILTERS = ['all', 'match', 'over', 'short', 'flagged'] as const;
+// tolerancePct: التفاوت الافتراضي حين لا يحدد الصنف تفاوتاً؛ الصفر = أي فرق يُعلَّم. Default tolerance when an item defines none; 0 = flag any difference.
+export const taskResultsQuerySchema = paginationSchema.extend({
+  filter: z.enum(RESULT_FILTERS).default('all'),
+  sort: z.enum(RESULT_SORTS).default('difference'),
+  q: z.string().trim().max(100).optional(),
+  tolerancePct: z.string().regex(DECIMAL_PATTERN).default('0'),
+});
+export type TaskResultsQuery = z.infer<typeof taskResultsQuerySchema>;
