@@ -186,7 +186,12 @@ export const DEMO_ROLES: readonly DemoRole[] = [
   {
     name: 'موظف جرد',
     description: 'ينفّذ العدّ الميداني',
-    permissions: ['inventory.warehouse.read', 'inventory.item.read', 'inventory.task.read'],
+    permissions: [
+      'inventory.warehouse.read',
+      'inventory.item.read',
+      'inventory.task.read',
+      'inventory.task.scan',
+    ],
   },
 ];
 
