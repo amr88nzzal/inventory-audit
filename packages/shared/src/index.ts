@@ -114,7 +114,10 @@ export {
 } from './offline-queue';
 export type { OfflineQueue, QueuedOp, ScanFilterOptions } from './offline-queue';
 export {
+  RESULT_FILTERS,
+  RESULT_SORTS,
   TASK_SORTS,
+  taskResultsQuerySchema,
   TASK_STATUSES,
   canTransition,
   createTaskSchema,
@@ -123,8 +126,23 @@ export {
   taskTransitionSchema,
   updateTaskSchema,
 } from './tasks';
-export type { CreateTaskInput, TaskListQuery, TaskStatus, UpdateTaskInput } from './tasks';
+export type {
+  CreateTaskInput,
+  TaskListQuery,
+  TaskResultsQuery,
+  TaskStatus,
+  UpdateTaskInput,
+} from './tasks';
 export { BALANCES_IMPORT_TEMPLATE, BALANCE_PATTERN, parseBalancesCsv } from './balances-import';
 export type { BalanceField, BalanceRow, ParsedBalances } from './balances-import';
 export { SCAN_BATCH_MAX, scanBatchSchema, scanEventSchema, scanListQuerySchema } from './scans';
 export type { ScanBatch, ScanEvent, ScanListQuery } from './scans';
+export { buildVarianceReport } from './variance-report';
+export type {
+  CountedLine,
+  ReportInput,
+  ReportRow,
+  ReportSummary,
+  TheoreticalLine,
+  VarianceStatus,
+} from './variance-report';

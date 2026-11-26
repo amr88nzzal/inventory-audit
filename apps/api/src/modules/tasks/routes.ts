@@ -6,6 +6,7 @@ import {
   paginationSchema,
   scanBatchSchema,
   scanListQuerySchema,
+  taskResultsQuerySchema,
   taskListQuerySchema,
   taskTransitionSchema,
   updateTaskSchema,
@@ -17,6 +18,7 @@ import { AppError } from '../../errors';
 import { parseInput } from '../../validation';
 import type { PermissionService, RequirePermission } from '../rbac';
 import { listBalances, uploadBalances } from './balances';
+import { taskResults, unknownBarcodes } from './results';
 import { listScans, submitScans } from './scans';
 import { cancelTask, createTask, getTask, listTasks, startTask, updateTask } from './service';
 import type { Actor, TaskDeps } from './service';
@@ -120,6 +122,24 @@ export const createTaskRouter = (
     const { data, meta } = await listScans(deps, actorOf(req), idParam(req), await seesAll(req), q);
     res.json({ data, meta });
   });
+
+  // نتائج الجرد للمشرف فقط (read_all): تكشف الرصيد النظري فلا تُعطى لموظف العد الأعمى.
+  // Results are supervisor-only (read_all): they reveal the theoretical balance, so a blind-count employee never gets them.
+  router.get('/tasks/:id/results', requirePermission('inventory.task.read_all'), async (req, res) => {
+    const q = parseInput(taskResultsQuerySchema, req.query);
+    const { data, meta } = await taskResults(deps, actorOf(req), idParam(req), q);
+    res.json({ data, meta });
+  });
+
+  router.get(
+    '/tasks/:id/results/unknown',
+    requirePermission('inventory.task.read_all'),
+    async (req, res) => {
+      const q = parseInput(paginationSchema, req.query);
+      const { data, meta } = await unknownBarcodes(deps, actorOf(req), idParam(req), q);
+      res.json({ data, meta });
+    },
+  );
 
   router.get('/tasks/:id', requirePermission('inventory.task.read'), async (req, res) => {
     res.json({
