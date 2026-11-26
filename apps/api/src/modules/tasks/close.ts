@@ -64,6 +64,14 @@ export const closeTask = (
       });
 
     const report = await liveReport(trx, task, '0');
+    // إعادة عدّ لم تكتمل تمنع الإغلاق مطلقاً، حتى مع الإقرار. A recount still pending blocks closing outright, even when acknowledged.
+    if (report.pending.size > 0)
+      throw new AppError(
+        'RECOUNT_PENDING',
+        409,
+        'Some requested recounts have not been counted yet',
+        { pending: report.pending.size },
+      );
     if (report.summary.flagged > 0 && !input.acknowledgeFlagged)
       throw new AppError(
         'UNRESOLVED_VARIANCES',
@@ -88,6 +96,7 @@ export const closeTask = (
               status: r.status,
               applied_tolerance_pct: r.appliedTolerancePct,
               flagged_for_recount: r.flaggedForRecount,
+              round: report.rounds.get(r.itemId) ?? 1,
               locations: r.locations ? JSON.stringify(r.locations) : null,
             })),
           )

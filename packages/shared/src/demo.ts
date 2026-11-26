@@ -182,6 +182,7 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       'inventory.task.cancel',
       'inventory.task.balances',
       'inventory.task.close',
+      'inventory.task.recount',
     ],
   },
   {
