@@ -121,6 +121,16 @@ export interface AuditTasksTable extends AuditColumns {
   started_at: Date | null;
   closed_at: Date | null;
   cancelled_at: Date | null;
+  balances_uploaded_at: Date | null;
+  balances_uploaded_by: string | null;
+  balances_count: Generated<number>;
+}
+
+export interface AuditTaskBalancesTable {
+  task_id: string;
+  item_id: string;
+  company_id: string;
+  quantity: string;
 }
 
 export interface AuditTaskAssigneesTable {
@@ -200,6 +210,7 @@ export interface Database {
   audit_task_counters: AuditTaskCountersTable;
   audit_tasks: AuditTasksTable;
   audit_task_assignees: AuditTaskAssigneesTable;
+  audit_task_balances: AuditTaskBalancesTable;
   platform_admins: PlatformAdminsTable;
 }
 

@@ -191,38 +191,75 @@ const seedTask = async (
 ): Promise<void> => {
   const exists = await trx
     .selectFrom('audit_tasks')
-    .select('id')
+    .select(['id', 'balances_count', 'status'])
     .where('title', '=', DEMO_TASK.title)
     .where('deleted_at', 'is', null)
     .executeTakeFirst();
-  if (exists) return;
-  const counter = await trx
-    .insertInto('audit_task_counters')
-    .values({ company_id: companyId, last_no: 1 })
-    .onConflict((oc) =>
-      oc
-        .column('company_id')
-        .doUpdateSet({ last_no: sql<number>`audit_task_counters.last_no + 1` }),
-    )
-    .returning('last_no')
-    .executeTakeFirstOrThrow();
-  const id = newId();
-  await trx
-    .insertInto('audit_tasks')
-    .values({
-      id,
-      company_id: companyId,
-      task_no: counter.last_no,
-      title: DEMO_TASK.title,
-      warehouse_id: warehouseId,
-      created_by: null,
-      updated_by: null,
-    })
-    .execute();
-  await trx
-    .insertInto('audit_task_assignees')
-    .values({ task_id: id, user_id: assigneeId, company_id: companyId, created_by: null })
-    .execute();
+  let id = exists?.id;
+  if (!id) {
+    const counter = await trx
+      .insertInto('audit_task_counters')
+      .values({ company_id: companyId, last_no: 1 })
+      .onConflict((oc) =>
+        oc
+          .column('company_id')
+          .doUpdateSet({ last_no: sql<number>`audit_task_counters.last_no + 1` }),
+      )
+      .returning('last_no')
+      .executeTakeFirstOrThrow();
+    id = newId();
+    await trx
+      .insertInto('audit_tasks')
+      .values({
+        id,
+        company_id: companyId,
+        task_no: counter.last_no,
+        title: DEMO_TASK.title,
+        warehouse_id: warehouseId,
+        created_by: null,
+        updated_by: null,
+      })
+      .execute();
+    await trx
+      .insertInto('audit_task_assignees')
+      .values({ task_id: id, user_id: assigneeId, company_id: companyId, created_by: null })
+      .execute();
+  }
+  // اللقطة التجريبية تُضاف مرة وللمسودة فقط (لا نمسّ مهمة بدأت). The demo snapshot is added once and only to a draft.
+  if (!exists || (exists.balances_count === 0 && exists.status === 'draft')) {
+    const items = await trx
+      .selectFrom('items')
+      .select(['id', 'barcode'])
+      .where(
+        'barcode',
+        'in',
+        DEMO_ITEMS.slice(0, DEMO_TASK.balances.length).map((i) => i.barcode),
+      )
+      .where('deleted_at', 'is', null)
+      .execute();
+    const byBarcode = new Map(items.map((i) => [i.barcode, i.id]));
+    const rows = DEMO_ITEMS.slice(0, DEMO_TASK.balances.length).flatMap((it, n) => {
+      const itemId = byBarcode.get(it.barcode);
+      return itemId
+        ? [
+            {
+              task_id: id,
+              item_id: itemId,
+              company_id: companyId,
+              quantity: DEMO_TASK.balances[n]!,
+            },
+          ]
+        : [];
+    });
+    if (rows.length > 0) {
+      await trx.insertInto('audit_task_balances').values(rows).execute();
+      await trx
+        .updateTable('audit_tasks')
+        .set({ balances_count: rows.length, balances_uploaded_at: new Date() })
+        .where('id', '=', id)
+        .execute();
+    }
+  }
 };
 
 export const seedDemo = async (deps: DemoDeps): Promise<DemoResult> => {

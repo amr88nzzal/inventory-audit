@@ -159,6 +159,11 @@ describe('tasks layer', () => {
       trx.selectFrom('audit_tasks').select(['title', 'status']).execute(),
     );
     expect(rows).toEqual([{ title: DEMO_TASK.title, status: 'draft' }]);
+    // لقطة الرصيد تُبذر مرة واحدة. The balance snapshot is seeded exactly once.
+    const bal = await withTenant(t.db, { companyId: r.companyId }, ({ trx }) =>
+      trx.selectFrom('audit_task_balances').select('item_id').execute(),
+    );
+    expect(bal).toHaveLength(DEMO_TASK.balances.length);
     const list = async (u: string) => {
       const token = (await login(u)).body.data.accessToken as string;
       const res = await request(app).get('/api/v1/tasks').set('Authorization', `Bearer ${token}`);

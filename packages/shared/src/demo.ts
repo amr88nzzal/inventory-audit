@@ -180,6 +180,7 @@ export const DEMO_ROLES: readonly DemoRole[] = [
       'inventory.task.update',
       'inventory.task.start',
       'inventory.task.cancel',
+      'inventory.task.balances',
     ],
   },
   {
@@ -194,6 +195,8 @@ export const DEMO_TASK = {
   title: 'جرد المستودع الرئيسي (تجريبي)',
   warehouse: 'MAIN',
   assignee: 'demo.auditor1',
+  // لقطة الرصيد النظري التجريبية: أول 5 أصناف بكميات ثابتة. The demo balance snapshot: the first 5 items, fixed quantities.
+  balances: ['120', '36', '48', '200', '15.5'],
 } as const;
 
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [

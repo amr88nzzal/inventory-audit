@@ -27,6 +27,7 @@ export const PERMISSIONS = [
   'inventory.task.update',
   'inventory.task.start',
   'inventory.task.cancel',
+  'inventory.task.balances',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
