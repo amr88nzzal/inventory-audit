@@ -6,6 +6,8 @@ import {
   paginationSchema,
   scanBatchSchema,
   scanListQuerySchema,
+  closeTaskSchema,
+  idempotencyKeySchema,
   taskResultsQuerySchema,
   taskListQuerySchema,
   taskTransitionSchema,
@@ -18,6 +20,7 @@ import { AppError } from '../../errors';
 import { parseInput } from '../../validation';
 import type { PermissionService, RequirePermission } from '../rbac';
 import { listBalances, uploadBalances } from './balances';
+import { closeTask } from './close';
 import { taskResults, unknownBarcodes } from './results';
 import { listScans, submitScans } from './scans';
 import { cancelTask, createTask, getTask, listTasks, startTask, updateTask } from './service';
@@ -121,6 +124,23 @@ export const createTaskRouter = (
     const q = parseInput(scanListQuerySchema, req.query);
     const { data, meta } = await listScans(deps, actorOf(req), idParam(req), await seesAll(req), q);
     res.json({ data, meta });
+  });
+
+  // الإغلاق عملية حرجة: ترويسة Idempotency-Key إلزامية فتكرار الطلب بعد انقطاع لا يغلق مرتين.
+  // Closing is critical: the Idempotency-Key header is required so a retry after a drop cannot close twice.
+  router.post('/tasks/:id/close', requirePermission('inventory.task.close'), async (req, res) => {
+    const id = idParam(req);
+    const key = idempotencyKeySchema.safeParse(req.header('Idempotency-Key'));
+    if (!key.success)
+      throw new AppError(
+        'IDEMPOTENCY_KEY_REQUIRED',
+        400,
+        'The Idempotency-Key header is required (8-100 letters, digits, - or _)',
+      );
+    const input = parseInput(closeTaskSchema, req.body);
+    const out = await closeTask(deps, actorOf(req), id, input, key.data);
+    if (out.replayed) res.setHeader('Idempotent-Replay', 'true');
+    res.json({ data: out.task, meta: {} });
   });
 
   // نتائج الجرد للمشرف فقط (read_all): تكشف الرصيد النظري فلا تُعطى لموظف العد الأعمى.

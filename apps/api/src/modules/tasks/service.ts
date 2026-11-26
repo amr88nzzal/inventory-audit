@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import { canTransition, escapeLike, isEditable, offsetOf, pageMeta } from '@inventory/shared';
 import type {
   CreateTaskInput,
@@ -31,7 +32,9 @@ export interface TaskView {
   startsAt: string | null;
   blindCount: boolean;
   aggregateLocations: boolean;
+  tolerancePct: string | null;
   notes: string | null;
+  closingNote: string | null;
   startedAt: string | null;
   closedAt: string | null;
   cancelledAt: string | null;
@@ -56,6 +59,8 @@ export interface Row {
   starts_at: Date | null;
   blind_count: boolean;
   aggregate_locations: boolean;
+  tolerance_pct: string | null;
+  closing_note: string | null;
   notes: string | null;
   started_at: Date | null;
   closed_at: Date | null;
@@ -80,6 +85,8 @@ const baseSelect = (trx: Trx) =>
       't.starts_at',
       't.blind_count',
       't.aggregate_locations',
+      't.tolerance_pct',
+      't.closing_note',
       't.notes',
       't.started_at',
       't.closed_at',
@@ -123,7 +130,9 @@ const toView = (r: Row, assignees: TaskView['assignees']): TaskView => ({
   startsAt: iso(r.starts_at),
   blindCount: r.blind_count,
   aggregateLocations: r.aggregate_locations,
+  tolerancePct: r.tolerance_pct === null ? null : new Decimal(r.tolerance_pct).toFixed(),
   notes: r.notes,
+  closingNote: r.closing_note,
   startedAt: iso(r.started_at),
   closedAt: iso(r.closed_at),
   cancelledAt: iso(r.cancelled_at),
@@ -216,7 +225,7 @@ const replaceAssignees = async (
       .execute();
 };
 
-const view = async (trx: Trx, row: Row): Promise<TaskView> =>
+export const view = async (trx: Trx, row: Row): Promise<TaskView> =>
   toView(row, (await assigneesOf(trx, [row.id])).get(row.id) ?? []);
 
 export const createTask = (
@@ -263,6 +272,7 @@ export const createTask = (
         starts_at: input.startsAt ? new Date(input.startsAt) : null,
         blind_count: input.blindCount,
         aggregate_locations: input.aggregateLocations,
+        tolerance_pct: input.tolerancePct ?? null,
         notes: input.notes ?? null,
         created_by: actor.userId,
         updated_by: actor.userId,
@@ -368,6 +378,7 @@ export const updateTask = (
         ...(input.aggregateLocations !== undefined
           ? { aggregate_locations: input.aggregateLocations }
           : {}),
+        ...(input.tolerancePct !== undefined ? { tolerance_pct: input.tolerancePct } : {}),
         ...(input.notes !== undefined ? { notes: input.notes } : {}),
         version: eb('version', '+', 1),
         updated_at: new Date(),
