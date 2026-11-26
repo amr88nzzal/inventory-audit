@@ -125,11 +125,15 @@ export const createTaskRouter = (
 
   // نتائج الجرد للمشرف فقط (read_all): تكشف الرصيد النظري فلا تُعطى لموظف العد الأعمى.
   // Results are supervisor-only (read_all): they reveal the theoretical balance, so a blind-count employee never gets them.
-  router.get('/tasks/:id/results', requirePermission('inventory.task.read_all'), async (req, res) => {
-    const q = parseInput(taskResultsQuerySchema, req.query);
-    const { data, meta } = await taskResults(deps, actorOf(req), idParam(req), q);
-    res.json({ data, meta });
-  });
+  router.get(
+    '/tasks/:id/results',
+    requirePermission('inventory.task.read_all'),
+    async (req, res) => {
+      const q = parseInput(taskResultsQuerySchema, req.query);
+      const { data, meta } = await taskResults(deps, actorOf(req), idParam(req), q);
+      res.json({ data, meta });
+    },
+  );
 
   router.get(
     '/tasks/:id/results/unknown',
