@@ -17,6 +17,7 @@ export interface UnknownView {
   records: number;
 }
 export interface ResultsMeta extends PageMeta {
+  frozen: boolean;
   summary: ReportSummary & { unknownBarcodes: number; unknownQuantity: string };
 }
 
@@ -66,8 +67,126 @@ const unknownRows = async (trx: Trx, taskId: string): Promise<UnknownView[]> => 
   }));
 };
 
+export interface Report {
+  rows: ReportRow[];
+  summary: ReportSummary;
+  unknown: UnknownView[];
+  info: Map<string, ItemInfo>;
+  // true = نتيجة مجمَّدة عند الإغلاق. true = the result frozen at close.
+  frozen: boolean;
+}
+interface ItemInfo {
+  barcode: string;
+  name: string;
+  base_unit: string;
+  tolerance_pct: string | null;
+  search_text: string;
+}
+
+const loadInfo = async (
+  trx: Trx,
+  ids: string[],
+): Promise<Map<string, ItemInfo & { id: string }>> => {
+  const info = new Map<string, ItemInfo & { id: string }>();
+  for (let i = 0; i < ids.length; i += 1000) {
+    const rows = await trx
+      .selectFrom('items')
+      .select(['id', 'barcode', 'name', 'base_unit', 'tolerance_pct', 'search_text'])
+      .where('id', 'in', ids.slice(i, i + 1000))
+      .execute();
+    for (const r of rows) info.set(r.id, r);
+  }
+  return info;
+};
+
+// الحساب الحيّ من السجلات ولقطة الرصيد. Live calculation from the records and the balance snapshot.
+export const liveReport = async (
+  trx: Trx,
+  task: { id: string; aggregate_locations: boolean; tolerance_pct: string | null },
+  defaultTolerancePct: string,
+): Promise<Report> => {
+  const counted = (await effectiveCounts(trx, task.id).execute()).map((r) => ({
+    itemId: r.item_id as string,
+    locationId: r.location_id,
+    quantity: r.quantity,
+  }));
+  const theoretical = (
+    await trx
+      .selectFrom('audit_task_balances')
+      .select(['item_id', 'quantity'])
+      .where('task_id', '=', task.id)
+      .execute()
+  ).map((r) => ({ itemId: r.item_id, quantity: r.quantity }));
+  const ids = [...new Set([...counted.map((c) => c.itemId), ...theoretical.map((t) => t.itemId)])];
+  const info = await loadInfo(trx, ids);
+  const itemTolerances: Record<string, string | null> = {};
+  for (const [id, r] of info) itemTolerances[id] = r.tolerance_pct;
+  const report = buildVarianceReport({
+    counted,
+    theoretical,
+    itemTolerances,
+    taskTolerancePct: task.tolerance_pct,
+    defaultTolerancePct,
+    aggregateLocations: task.aggregate_locations,
+  });
+  return { ...report, unknown: await unknownRows(trx, task.id), info, frozen: false };
+};
+
+// النتيجة المجمَّدة بعد الإغلاق: لا تتأثر بأي تعديل لاحق. The frozen result after close: unaffected by any later edit.
+export const frozenReport = async (trx: Trx, taskId: string): Promise<Report> => {
+  const stored = await trx
+    .selectFrom('audit_task_results')
+    .selectAll()
+    .where('task_id', '=', taskId)
+    .execute();
+  const rows: ReportRow[] = stored.map((r) => ({
+    itemId: r.item_id,
+    counted: new Decimal(r.counted).toFixed(),
+    theoretical: new Decimal(r.theoretical).toFixed(),
+    difference: new Decimal(r.difference).toFixed(),
+    differencePct: r.difference_pct === null ? null : new Decimal(r.difference_pct).toFixed(),
+    status: r.status,
+    appliedTolerancePct: new Decimal(r.applied_tolerance_pct).toFixed(),
+    flaggedForRecount: r.flagged_for_recount,
+    ...(r.locations ? { locations: r.locations } : {}),
+  }));
+  const summary: ReportSummary = {
+    items: rows.length,
+    matched: rows.filter((r) => r.status === 'match').length,
+    over: rows.filter((r) => r.status === 'over').length,
+    short: rows.filter((r) => r.status === 'short').length,
+    flagged: rows.filter((r) => r.flaggedForRecount).length,
+    totalCounted: rows.reduce((a, r) => a.plus(r.counted), new Decimal(0)).toFixed(),
+    totalTheoretical: rows.reduce((a, r) => a.plus(r.theoretical), new Decimal(0)).toFixed(),
+    totalDifference: rows.reduce((a, r) => a.plus(r.difference), new Decimal(0)).toFixed(),
+  };
+  const unknown = (
+    await trx
+      .selectFrom('audit_task_unknown')
+      .select(['barcode', 'quantity', 'records'])
+      .where('task_id', '=', taskId)
+      .orderBy('barcode')
+      .execute()
+  ).map((u) => ({
+    barcode: u.barcode,
+    quantity: new Decimal(u.quantity).toFixed(),
+    records: u.records,
+  }));
+  return {
+    rows,
+    summary,
+    unknown,
+    info: await loadInfo(
+      trx,
+      rows.map((r) => r.itemId),
+    ),
+    frozen: true,
+  };
+};
+
 // نتائج الجرد: الفرق لكل صنف مقابل لقطة الرصيد. للمشرفين (read_all) فقط، فلا تكشف الرصيد في العد الأعمى.
-// Count results: per-item variance against the balance snapshot. Supervisors (read_all) only, so a blind count never leaks the balance.
+// بعد الإغلاق تُقرأ النتيجة المجمَّدة. Count results: per-item variance against the balance snapshot. Supervisors (read_all) only,
+// so a blind count never leaks the balance. After close the frozen result is read.
 export const taskResults = (
   deps: TaskDeps,
   actor: Actor,
@@ -76,49 +195,11 @@ export const taskResults = (
 ): Promise<{ data: ResultRowView[]; meta: ResultsMeta }> =>
   withTenant(deps.db, actor, async ({ trx }) => {
     const task = await loadVisible(trx, actor, taskId, true);
-    const counted = (await effectiveCounts(trx, taskId).execute()).map((r) => ({
-      itemId: r.item_id as string,
-      locationId: r.location_id,
-      quantity: r.quantity,
-    }));
-    const theoretical = (
-      await trx
-        .selectFrom('audit_task_balances')
-        .select(['item_id', 'quantity'])
-        .where('task_id', '=', taskId)
-        .execute()
-    ).map((r) => ({ itemId: r.item_id, quantity: r.quantity }));
-    const ids = [
-      ...new Set([...counted.map((c) => c.itemId), ...theoretical.map((t) => t.itemId)]),
-    ];
-    const info = new Map<
-      string,
-      {
-        barcode: string;
-        name: string;
-        base_unit: string;
-        tolerance_pct: string | null;
-        search_text: string;
-      }
-    >();
-    for (let i = 0; i < ids.length; i += 1000) {
-      const rows = await trx
-        .selectFrom('items')
-        .select(['id', 'barcode', 'name', 'base_unit', 'tolerance_pct', 'search_text'])
-        .where('id', 'in', ids.slice(i, i + 1000))
-        .execute();
-      for (const r of rows) info.set(r.id, r);
-    }
-    const itemTolerances: Record<string, string | null> = {};
-    for (const [id, r] of info) itemTolerances[id] = r.tolerance_pct;
-    const report = buildVarianceReport({
-      counted,
-      theoretical,
-      itemTolerances,
-      defaultTolerancePct: query.tolerancePct,
-      aggregateLocations: task.aggregate_locations,
-    });
-    const unknown = await unknownRows(trx, taskId);
+    const report =
+      task.status === 'closed'
+        ? await frozenReport(trx, taskId)
+        : await liveReport(trx, task, query.tolerancePct);
+    const { info, unknown } = report;
 
     let rows: ResultRowView[] = report.rows.map((r) => {
       const i = info.get(r.itemId);
@@ -152,6 +233,7 @@ export const taskResults = (
       data: rows.slice(start, start + query.pageSize),
       meta: {
         ...pageMeta(query.page, query.pageSize, rows.length),
+        frozen: report.frozen,
         summary: {
           ...report.summary,
           unknownBarcodes: unknown.length,
@@ -168,8 +250,11 @@ export const unknownBarcodes = (
   query: { page: number; pageSize: number },
 ): Promise<{ data: UnknownView[]; meta: PageMeta }> =>
   withTenant(deps.db, actor, async ({ trx }) => {
-    await loadVisible(trx, actor, taskId, true);
-    const all = await unknownRows(trx, taskId);
+    const task = await loadVisible(trx, actor, taskId, true);
+    const all =
+      task.status === 'closed'
+        ? (await frozenReport(trx, taskId)).unknown
+        : await unknownRows(trx, taskId);
     const start = offsetOf(query.page, query.pageSize);
     return {
       data: all.slice(start, start + query.pageSize),

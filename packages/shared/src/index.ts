@@ -115,6 +115,8 @@ export {
 export type { OfflineQueue, QueuedOp, ScanFilterOptions } from './offline-queue';
 export {
   RESULT_FILTERS,
+  closeTaskSchema,
+  idempotencyKeySchema,
   RESULT_SORTS,
   TASK_SORTS,
   taskResultsQuerySchema,
@@ -127,6 +129,7 @@ export {
   updateTaskSchema,
 } from './tasks';
 export type {
+  CloseTaskInput,
   CreateTaskInput,
   TaskListQuery,
   TaskResultsQuery,

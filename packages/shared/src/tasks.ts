@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { percentSchema } from './items';
 import { paginationSchema } from './pagination';
 import { DECIMAL_PATTERN } from './units';
 
 export const TASK_STATUSES = ['draft', 'in_progress', 'closed', 'cancelled'] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-// الانتقالات المسموحة؛ الإغلاق يأتي مع المرحلة 3د. Allowed transitions; closing arrives with phase 3d.
+// الانتقالات المسموحة. Allowed transitions.
 const TRANSITIONS: Record<TaskStatus, readonly TaskStatus[]> = {
   draft: ['in_progress', 'cancelled'],
   in_progress: ['closed', 'cancelled'],
@@ -36,6 +37,8 @@ export const createTaskSchema = z
     assigneeIds: assigneesSchema.default([]),
     blindCount: z.boolean().default(false),
     aggregateLocations: z.boolean().default(true),
+    // تفاوت المهمة % (أولوية أدنى من تفاوت الصنف). Task tolerance % (lower priority than the item's).
+    tolerancePct: percentSchema.optional(),
     notes: notesSchema.optional(),
   })
   .strict();
@@ -49,6 +52,7 @@ export const updateTaskSchema = z
     assigneeIds: assigneesSchema.optional(),
     blindCount: z.boolean().optional(),
     aggregateLocations: z.boolean().optional(),
+    tolerancePct: percentSchema.nullable().optional(),
     notes: notesSchema.nullable().optional(),
   })
   .strict()
@@ -79,3 +83,19 @@ export const taskResultsQuerySchema = paginationSchema.extend({
   tolerancePct: z.string().regex(DECIMAL_PATTERN).default('0'),
 });
 export type TaskResultsQuery = z.infer<typeof taskResultsQuerySchema>;
+
+// الإغلاق: النسخة للقفل المتفائل، وتأكيد صريح إن بقيت أصناف معلَّمة. Close: the version for optimistic locking, and an explicit acknowledgement when flagged items remain.
+export const closeTaskSchema = z
+  .object({
+    version: versionSchema,
+    acknowledgeFlagged: z.boolean().default(false),
+    note: notesSchema.optional(),
+  })
+  .strict();
+export type CloseTaskInput = z.infer<typeof closeTaskSchema>;
+
+// مفتاح عدم التكرار: ترويسة إلزامية للعمليات الحرجة. The idempotency key: a required header for critical operations.
+export const idempotencyKeySchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z0-9_-]{8,100}$/);

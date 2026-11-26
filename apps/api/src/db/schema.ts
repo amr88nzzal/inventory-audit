@@ -124,6 +124,44 @@ export interface AuditTasksTable extends AuditColumns {
   balances_uploaded_at: Date | null;
   balances_uploaded_by: string | null;
   balances_count: Generated<number>;
+  tolerance_pct: string | null;
+  closed_by: string | null;
+  closing_note: string | null;
+}
+
+export interface AuditTaskResultsTable {
+  task_id: string;
+  item_id: string;
+  company_id: string;
+  counted: string;
+  theoretical: string;
+  difference: string;
+  difference_pct: string | null;
+  status: 'match' | 'over' | 'short';
+  applied_tolerance_pct: string;
+  flagged_for_recount: boolean;
+  locations: ColumnType<
+    { locationId: string | null; counted: string }[] | null,
+    string | null,
+    never
+  >;
+}
+
+export interface AuditTaskUnknownTable {
+  task_id: string;
+  barcode: string;
+  company_id: string;
+  quantity: string;
+  records: number;
+}
+
+export interface IdempotencyKeysTable {
+  company_id: string;
+  user_id: string;
+  key: string;
+  request_hash: string;
+  response: unknown;
+  created_at: DefaultedTimestamp;
 }
 
 export interface AuditRecordsTable {
@@ -230,6 +268,9 @@ export interface Database {
   audit_task_assignees: AuditTaskAssigneesTable;
   audit_task_balances: AuditTaskBalancesTable;
   audit_records: AuditRecordsTable;
+  audit_task_results: AuditTaskResultsTable;
+  audit_task_unknown: AuditTaskUnknownTable;
+  idempotency_keys: IdempotencyKeysTable;
   platform_admins: PlatformAdminsTable;
 }
 
