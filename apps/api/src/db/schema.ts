@@ -126,6 +126,24 @@ export interface AuditTasksTable extends AuditColumns {
   balances_count: Generated<number>;
 }
 
+export interface AuditRecordsTable {
+  id: string;
+  company_id: string;
+  task_id: string;
+  user_id: string;
+  kind: 'count' | 'void';
+  location_id: string | null;
+  item_id: string | null;
+  barcode: string | null;
+  quantity: string | null;
+  unit_id: string | null;
+  base_quantity: string | null;
+  voids_id: string | null;
+  note: string | null;
+  scanned_at: Date;
+  received_at: DefaultedTimestamp;
+}
+
 export interface AuditTaskBalancesTable {
   task_id: string;
   item_id: string;
@@ -211,6 +229,7 @@ export interface Database {
   audit_tasks: AuditTasksTable;
   audit_task_assignees: AuditTaskAssigneesTable;
   audit_task_balances: AuditTaskBalancesTable;
+  audit_records: AuditRecordsTable;
   platform_admins: PlatformAdminsTable;
 }
 

@@ -4,6 +4,8 @@ import {
   ImportFileError,
   createTaskSchema,
   paginationSchema,
+  scanBatchSchema,
+  scanListQuerySchema,
   taskListQuerySchema,
   taskTransitionSchema,
   updateTaskSchema,
@@ -15,6 +17,7 @@ import { AppError } from '../../errors';
 import { parseInput } from '../../validation';
 import type { PermissionService, RequirePermission } from '../rbac';
 import { listBalances, uploadBalances } from './balances';
+import { listScans, submitScans } from './scans';
 import { cancelTask, createTask, getTask, listTasks, startTask, updateTask } from './service';
 import type { Actor, TaskDeps } from './service';
 
@@ -102,6 +105,19 @@ export const createTaskRouter = (
       await seesAll(req),
       q,
     );
+    res.json({ data, meta });
+  });
+
+  // استقبال المسح: كل حدث يحمل معرّفه (مفتاح عدم التكرار)، والنتيجة لكل حدث. Scan ingest: each event carries its own id (idempotency key); the result is per event.
+  router.post('/tasks/:id/scans', requirePermission('inventory.task.scan'), async (req, res) => {
+    const id = idParam(req);
+    const batch = parseInput(scanBatchSchema, req.body);
+    res.json({ data: await submitScans(deps, actorOf(req), id, batch), meta: {} });
+  });
+
+  router.get('/tasks/:id/scans', requirePermission('inventory.task.read'), async (req, res) => {
+    const q = parseInput(scanListQuerySchema, req.query);
+    const { data, meta } = await listScans(deps, actorOf(req), idParam(req), await seesAll(req), q);
     res.json({ data, meta });
   });
 
