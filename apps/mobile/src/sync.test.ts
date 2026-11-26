@@ -84,9 +84,9 @@ describe('runQueue', () => {
 
   it('a corrupt stored value reads as an empty queue', async () => {
     const s = memory();
-    s.raw.set('inventory.queue.v1', '{not json');
+    s.raw.set('inventory.queue.v2', '{not json');
     expect(await loadQueue(s)).toEqual([]);
-    s.raw.set('inventory.queue.v1', '{"a":1}');
+    s.raw.set('inventory.queue.v2', '{"a":1}');
     expect(await loadQueue(s)).toEqual([]);
   });
 

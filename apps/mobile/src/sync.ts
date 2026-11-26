@@ -6,7 +6,8 @@ export interface QueueStorage {
   getItem: (key: string) => Promise<string | null>;
   setItem: (key: string, value: string) => Promise<void>;
 }
-const KEY = 'inventory.queue.v1';
+// v2: عمليات المسبار القديمة (معرّفات غير UUID) تُترك ولا تُرسل. v2: old spike ops (non-UUID ids) are left behind, never sent.
+const KEY = 'inventory.queue.v2';
 
 // قراءة متسامحة: ملف تالف يعني طابوراً فارغاً لا تعطّل التطبيق. Tolerant read: a corrupt value means an empty queue, not a crash.
 export const loadQueue = async (storage: QueueStorage): Promise<OfflineQueue> => {
