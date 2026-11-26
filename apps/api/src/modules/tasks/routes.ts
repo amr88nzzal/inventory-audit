@@ -7,6 +7,7 @@ import {
   scanBatchSchema,
   scanListQuerySchema,
   closeTaskSchema,
+  recountRequestSchema,
   idempotencyKeySchema,
   taskResultsQuerySchema,
   taskListQuerySchema,
@@ -21,6 +22,7 @@ import { parseInput } from '../../validation';
 import type { PermissionService, RequirePermission } from '../rbac';
 import { listBalances, uploadBalances } from './balances';
 import { closeTask } from './close';
+import { listRecounts, myRecounts, requestRecounts } from './recounts';
 import { taskResults, unknownBarcodes } from './results';
 import { listScans, submitScans } from './scans';
 import { cancelTask, createTask, getTask, listTasks, startTask, updateTask } from './service';
@@ -125,6 +127,36 @@ export const createTaskRouter = (
     const { data, meta } = await listScans(deps, actorOf(req), idParam(req), await seesAll(req), q);
     res.json({ data, meta });
   });
+
+  // إعادة العدّ: يطلبها المشرف لمراجع ثانٍ، ويرى المراجع ما عليه دون أي رصيد.
+  // Recount: a supervisor asks a second reviewer; the reviewer sees what to count with no balance attached.
+  router.post(
+    '/tasks/:id/recounts',
+    requirePermission('inventory.task.recount'),
+    async (req, res) => {
+      const id = idParam(req);
+      const input = parseInput(recountRequestSchema, req.body);
+      res.json({ data: await requestRecounts(deps, actorOf(req), id, input), meta: {} });
+    },
+  );
+
+  router.get(
+    '/tasks/:id/recounts',
+    requirePermission('inventory.task.read_all'),
+    async (req, res) => {
+      const q = parseInput(paginationSchema, req.query);
+      const { data, meta } = await listRecounts(deps, actorOf(req), idParam(req), q);
+      res.json({ data, meta });
+    },
+  );
+
+  router.get(
+    '/tasks/:id/my-recounts',
+    requirePermission('inventory.task.scan'),
+    async (req, res) => {
+      res.json({ data: await myRecounts(deps, actorOf(req), idParam(req)), meta: {} });
+    },
+  );
 
   // الإغلاق عملية حرجة: ترويسة Idempotency-Key إلزامية فتكرار الطلب بعد انقطاع لا يغلق مرتين.
   // Closing is critical: the Idempotency-Key header is required so a retry after a drop cannot close twice.

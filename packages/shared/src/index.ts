@@ -117,6 +117,7 @@ export {
   RESULT_FILTERS,
   closeTaskSchema,
   idempotencyKeySchema,
+  recountRequestSchema,
   RESULT_SORTS,
   TASK_SORTS,
   taskResultsQuerySchema,
@@ -131,6 +132,7 @@ export {
 export type {
   CloseTaskInput,
   CreateTaskInput,
+  RecountRequestInput,
   TaskListQuery,
   TaskResultsQuery,
   TaskStatus,

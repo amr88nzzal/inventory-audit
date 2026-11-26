@@ -7,6 +7,8 @@ import { loadVisible } from './service';
 import type { Actor, TaskDeps, Trx } from './service';
 
 export interface ResultRowView extends ReportRow {
+  round: number;
+  recountPending: boolean;
   barcode: string;
   name: string;
   baseUnit: string;
@@ -18,7 +20,11 @@ export interface UnknownView {
 }
 export interface ResultsMeta extends PageMeta {
   frozen: boolean;
-  summary: ReportSummary & { unknownBarcodes: number; unknownQuantity: string };
+  summary: ReportSummary & {
+    unknownBarcodes: number;
+    unknownQuantity: string;
+    recountPending: number;
+  };
 }
 
 // العدّات السارية: سجلات count التي لم يلغها سجل void، مجمّعة حسب الصنف والموقع في قاعدة البيانات.
@@ -26,7 +32,12 @@ export interface ResultsMeta extends PageMeta {
 const effectiveCounts = (trx: Trx, taskId: string) =>
   trx
     .selectFrom('audit_records as r')
-    .select(['r.item_id', 'r.location_id', sql<string>`sum(r.base_quantity)`.as('quantity')])
+    .select([
+      'r.item_id',
+      'r.location_id',
+      sql<string>`sum(r.base_quantity)`.as('quantity'),
+      sql<number>`max(r.round)`.as('round'),
+    ])
     .where('r.task_id', '=', taskId)
     .where('r.kind', '=', 'count')
     .where('r.item_id', 'is not', null)
@@ -37,7 +48,30 @@ const effectiveCounts = (trx: Trx, taskId: string) =>
         ),
       ),
     )
+    // الجولة السارية للصنف = أعلى جولة فيها عدّ غير ملغى؛ ما قبلها يبقى محفوظاً ولا يُحسب.
+    // The effective round of an item is the highest round holding a non-voided count; earlier rounds stay stored but are not counted.
+    .where(
+      sql<boolean>`r.round = (
+        select max(r2.round) from audit_records r2
+        where r2.task_id = r.task_id and r2.item_id = r.item_id and r2.kind = 'count'
+          and not exists (select 1 from audit_records v2 where v2.voids_id = r2.id)
+      )`,
+    )
     .groupBy(['r.item_id', 'r.location_id']);
+
+// أصناف طُلبت إعادة عدّها ولم يصل عدّ الجولة الجديدة بعد. Items with a recount requested whose new-round count has not arrived yet.
+export const pendingRecounts = async (trx: Trx, taskId: string): Promise<Set<string>> => {
+  const rows = await sql<{ item_id: string }>`
+    select distinct rc.item_id from audit_recounts rc
+    where rc.task_id = ${taskId}
+      and rc.round = (select max(x.round) from audit_recounts x where x.task_id = rc.task_id and x.item_id = rc.item_id)
+      and not exists (
+        select 1 from audit_records r
+        where r.task_id = rc.task_id and r.item_id = rc.item_id and r.kind = 'count' and r.round = rc.round
+          and not exists (select 1 from audit_records v where v.voids_id = r.id)
+      )`.execute(trx);
+  return new Set(rows.rows.map((r) => r.item_id));
+};
 
 const unknownRows = async (trx: Trx, taskId: string): Promise<UnknownView[]> => {
   const rows = await trx
@@ -72,6 +106,8 @@ export interface Report {
   summary: ReportSummary;
   unknown: UnknownView[];
   info: Map<string, ItemInfo>;
+  rounds: Map<string, number>;
+  pending: Set<string>;
   // true = نتيجة مجمَّدة عند الإغلاق. true = the result frozen at close.
   frozen: boolean;
 }
@@ -105,7 +141,10 @@ export const liveReport = async (
   task: { id: string; aggregate_locations: boolean; tolerance_pct: string | null },
   defaultTolerancePct: string,
 ): Promise<Report> => {
-  const counted = (await effectiveCounts(trx, task.id).execute()).map((r) => ({
+  const countedRows = await effectiveCounts(trx, task.id).execute();
+  const rounds = new Map<string, number>();
+  for (const r of countedRows) rounds.set(r.item_id as string, Number(r.round));
+  const counted = countedRows.map((r) => ({
     itemId: r.item_id as string,
     locationId: r.location_id,
     quantity: r.quantity,
@@ -129,7 +168,14 @@ export const liveReport = async (
     defaultTolerancePct,
     aggregateLocations: task.aggregate_locations,
   });
-  return { ...report, unknown: await unknownRows(trx, task.id), info, frozen: false };
+  return {
+    ...report,
+    unknown: await unknownRows(trx, task.id),
+    info,
+    rounds,
+    pending: await pendingRecounts(trx, task.id),
+    frozen: false,
+  };
 };
 
 // النتيجة المجمَّدة بعد الإغلاق: لا تتأثر بأي تعديل لاحق. The frozen result after close: unaffected by any later edit.
@@ -180,6 +226,8 @@ export const frozenReport = async (trx: Trx, taskId: string): Promise<Report> =>
       trx,
       rows.map((r) => r.itemId),
     ),
+    rounds: new Map(stored.map((r) => [r.item_id, r.round])),
+    pending: new Set<string>(),
     frozen: true,
   };
 };
@@ -203,7 +251,14 @@ export const taskResults = (
 
     let rows: ResultRowView[] = report.rows.map((r) => {
       const i = info.get(r.itemId);
-      return { ...r, barcode: i?.barcode ?? '', name: i?.name ?? '', baseUnit: i?.base_unit ?? '' };
+      return {
+        ...r,
+        round: report.rounds.get(r.itemId) ?? 1,
+        recountPending: report.pending.has(r.itemId),
+        barcode: i?.barcode ?? '',
+        name: i?.name ?? '',
+        baseUnit: i?.base_unit ?? '',
+      };
     });
     if (query.filter === 'flagged') rows = rows.filter((r) => r.flaggedForRecount);
     else if (query.filter !== 'all') rows = rows.filter((r) => r.status === query.filter);
@@ -236,6 +291,7 @@ export const taskResults = (
         frozen: report.frozen,
         summary: {
           ...report.summary,
+          recountPending: report.pending.size,
           unknownBarcodes: unknown.length,
           unknownQuantity: unknownQty.toFixed(),
         },

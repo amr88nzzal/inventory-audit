@@ -61,6 +61,7 @@ const handleEvent = async (
   let barcode: string | null = null;
   let voidsId: string | null = null;
   let unknownItem = false;
+  let round = 1;
 
   if (e.kind === 'void') {
     const target = await trx
@@ -93,6 +94,34 @@ const handleEvent = async (
       .executeTakeFirst();
     itemId = item?.id ?? null;
     unknownItem = itemId === null;
+    // صنف عليه إعادة عدّ: لا يعدّه إلا المراجع المسند، وتُسجَّل في جولته. An item under recount: only the assigned reviewer counts it, in its round.
+    if (itemId) {
+      const rc = await trx
+        .selectFrom('audit_recounts')
+        .select(['round', 'assignee_id'])
+        .where('task_id', '=', task.id)
+        .where('item_id', '=', itemId)
+        .orderBy('round', 'desc')
+        .limit(1)
+        .executeTakeFirst();
+      if (rc) {
+        // إعادة إرسال حدث محفوظ سابقاً ليست مخالفة، فتمرّ لمسار التكرار. Replaying an already stored event is not a violation; it falls through to the duplicate path.
+        const stored = await trx
+          .selectFrom('audit_records')
+          .select('id')
+          .where('id', '=', e.id)
+          .executeTakeFirst();
+        if (!stored) {
+          if (rc.assignee_id !== actor.userId)
+            return reject(
+              e.id,
+              'RECOUNT_RESTRICTED',
+              'This item is under recount by another reviewer',
+            );
+          round = rc.round;
+        }
+      }
+    }
     let factor = '1';
     if (e.unitId) {
       if (!itemId)
@@ -143,6 +172,7 @@ const handleEvent = async (
       unit_id: unitId,
       base_quantity: baseQuantity,
       voids_id: voidsId,
+      round,
       note: e.note ?? null,
       scanned_at: new Date(e.scannedAt),
     })

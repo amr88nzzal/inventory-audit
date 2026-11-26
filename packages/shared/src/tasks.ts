@@ -99,3 +99,24 @@ export const idempotencyKeySchema = z
   .string()
   .trim()
   .regex(/^[A-Za-z0-9_-]{8,100}$/);
+
+// طلب إعادة العدّ: أصناف محددة أو كل المعلَّم، ومراجع ثانٍ مسند للمهمة. A recount request: chosen items or all flagged ones, and a second reviewer assigned to the task.
+export const recountRequestSchema = z
+  .object({
+    itemIds: z
+      .array(z.uuid())
+      .min(1)
+      .max(200)
+      .refine((l) => new Set(l).size === l.length, { message: 'Duplicate items' })
+      .optional(),
+    flagged: z.literal(true).optional(),
+    // التفاوت الافتراضي لتحديد المعلَّم؛ الصفر = أي فرق. Default tolerance deciding what is flagged; 0 = any difference.
+    tolerancePct: z.string().regex(DECIMAL_PATTERN).default('0'),
+    assigneeId: z.uuid(),
+    reason: z.string().trim().min(1).max(300).optional(),
+  })
+  .strict()
+  .refine((v) => (v.itemIds === undefined) !== (v.flagged === undefined), {
+    message: 'Provide exactly one of itemIds or flagged',
+  });
+export type RecountRequestInput = z.infer<typeof recountRequestSchema>;

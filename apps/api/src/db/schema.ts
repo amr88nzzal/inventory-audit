@@ -140,11 +140,24 @@ export interface AuditTaskResultsTable {
   status: 'match' | 'over' | 'short';
   applied_tolerance_pct: string;
   flagged_for_recount: boolean;
+  round: Generated<number>;
   locations: ColumnType<
     { locationId: string | null; counted: string }[] | null,
     string | null,
     never
   >;
+}
+
+export interface AuditRecountsTable {
+  id: string;
+  company_id: string;
+  task_id: string;
+  item_id: string;
+  round: number;
+  assignee_id: string;
+  requested_by: string;
+  reason: string | null;
+  requested_at: DefaultedTimestamp;
 }
 
 export interface AuditTaskUnknownTable {
@@ -178,6 +191,7 @@ export interface AuditRecordsTable {
   base_quantity: string | null;
   voids_id: string | null;
   note: string | null;
+  round: Generated<number>;
   scanned_at: Date;
   received_at: DefaultedTimestamp;
 }
@@ -269,6 +283,7 @@ export interface Database {
   audit_task_balances: AuditTaskBalancesTable;
   audit_records: AuditRecordsTable;
   audit_task_results: AuditTaskResultsTable;
+  audit_recounts: AuditRecountsTable;
   audit_task_unknown: AuditTaskUnknownTable;
   idempotency_keys: IdempotencyKeysTable;
   platform_admins: PlatformAdminsTable;
