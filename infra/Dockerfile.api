@@ -12,6 +12,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/
+COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 # المرشّح يمنع تنزيل حزم الموبايل الثقيلة داخل صورة الخادم. The filter keeps the heavy mobile packages out of the server image.
 RUN pnpm install --frozen-lockfile --filter @inventory/api...
@@ -31,6 +32,7 @@ ENV PORT=3000
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/mobile/package.json apps/mobile/
+COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 RUN pnpm install --frozen-lockfile --prod --filter @inventory/api...
 

@@ -1,4 +1,5 @@
 import js from '@eslint/js';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
@@ -35,6 +36,16 @@ export default tseslint.config(
       // نسمح بالتصريحات (declare global) فقط لتوسعة أنواع المكتبات.
       // Allow declarations only (declare global), for augmenting library types.
       '@typescript-eslint/no-namespace': ['error', { allowDeclarations: true }],
+    },
+  },
+  {
+    // الواجهة: قواعد الوصول (a11y) كأخطاء، وحدود الوحدات الخاصة بالخادم لا تنطبق عليها.
+    // The web app: accessibility rules as errors; the server's module-boundary rules do not apply to it.
+    files: ['apps/web/**/*.{ts,tsx}'],
+    plugins: { 'jsx-a11y': jsxA11y },
+    rules: {
+      ...jsxA11y.flatConfigs.recommended.rules,
+      'no-restricted-imports': 'off',
     },
   },
   {

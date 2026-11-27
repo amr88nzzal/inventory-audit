@@ -154,8 +154,18 @@ jobs:
           done
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/v1/roles)
           [ "$code" = 401 ] || { echo "expected 401 through the gateway, got $code"; exit 1; }
-          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)
-          [ "$code" = 404 ] || { echo "expected 404 for the root, got $code"; exit 1; }
+          # الواجهة: الجذر ومسار داخلي يعيدان صفحة التطبيق، والأصول مخزّنة طويلاً، و/api لا يسقط إلى الصفحة.
+          # The web app: the root and a client route return the app page, assets cache long, and /api never falls back to the page.
+          for p in / /login /tasks/123; do
+            curl -fsS http://127.0.0.1:18080$p | grep -q '<div id="root">' || { echo "expected the app page at $p"; exit 1; }
+          done
+          asset=$(curl -fsS http://127.0.0.1:18080/ | grep -o '/assets/[^"]*\.js' | head -1)
+          [ -n "$asset" ] || { echo "no script asset in the page"; exit 1; }
+          curl -sI http://127.0.0.1:18080$asset | grep -qi 'cache-control: public, max-age=31536000, immutable' || { echo "asset cache header missing"; exit 1; }
+          curl -sI http://127.0.0.1:18080/ | grep -qi 'content-security-policy: default-src' || { echo "CSP missing on the app page"; exit 1; }
+          if curl -s http://127.0.0.1:18080/api/v1/nope | grep -q '<div id="root">'; then
+            echo "an unknown /api route must not fall back to the app page"; exit 1
+          fi
           curl -sI http://127.0.0.1:18080/api/v1/health | grep -qi 'x-content-type-options: nosniff' || { echo "security headers missing"; exit 1; }
       - name: Stack works as the privilege-less login (demo seed, sign-in, no raw access)
         run: |
