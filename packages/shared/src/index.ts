@@ -119,6 +119,7 @@ export {
   idempotencyKeySchema,
   recountRequestSchema,
   RESULT_SORTS,
+  assignableUsersQuerySchema,
   TASK_SORTS,
   taskResultsQuerySchema,
   TASK_STATUSES,
@@ -130,6 +131,7 @@ export {
   updateTaskSchema,
 } from './tasks';
 export type {
+  AssignableUsersQuery,
   CloseTaskInput,
   CreateTaskInput,
   RecountRequestInput,
