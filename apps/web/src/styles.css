@@ -1,0 +1,15 @@
+/* وصلة تخطّي للوحة المفاتيح، ظاهرة عند التركيز فقط. A keyboard skip link, visible only on focus. */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 8px;
+  inset-block-start: -64px;
+  z-index: 1000;
+  padding: 8px 12px;
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+  border: 2px solid var(--mantine-primary-color-filled);
+  border-radius: 4px;
+}
+.skip-link:focus {
+  inset-block-start: 8px;
+}

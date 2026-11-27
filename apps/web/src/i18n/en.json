@@ -1,0 +1,47 @@
+{
+  "app": { "name": "Inventory" },
+  "common": {
+    "loading": "Loading…",
+    "logout": "Sign out",
+    "language": "Language",
+    "arabic": "العربية",
+    "english": "English",
+    "theme": { "light": "Light", "dark": "Dark", "auto": "Auto", "label": "Theme" },
+    "skip": "Skip to content",
+    "genericError": "Something went wrong. Please try again.",
+    "networkError": "Could not reach the server. Check your connection and try again."
+  },
+  "login": {
+    "title": "Sign in",
+    "company": "Company code",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "required": "This field is required",
+    "companyInvalid": "3-32 characters: lowercase letters, digits and dashes",
+    "invalidCredentials": "Incorrect sign-in details",
+    "locked": "The account is temporarily locked after failed attempts. Try later.",
+    "tooMany": "Too many attempts. Wait a moment and try again."
+  },
+  "changePassword": {
+    "title": "Change password",
+    "intro": "Your password is temporary. Choose a new one to continue.",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm new password",
+    "submit": "Save",
+    "tooShort": "At least 12 characters",
+    "mismatch": "The passwords do not match",
+    "same": "It must differ from the current one",
+    "wrongCurrent": "The current password is incorrect",
+    "done": "Password changed"
+  },
+  "home": {
+    "title": "Home",
+    "welcome": "Welcome, {{name}}",
+    "company": "Company: {{code}}",
+    "permissions": "Your permissions: {{count}}",
+    "soon": "The screens (warehouses, items, tasks) arrive in the next batches."
+  },
+  "nav": { "home": "Home", "main": "Main navigation" }
+}
