@@ -1,7 +1,6 @@
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Permission } from '@inventory/shared';
-import { sql } from 'kysely';
 import { createApp } from '../../app';
 import { withTenant } from '../../db';
 import { testConfig } from '../../testing/test-config';
