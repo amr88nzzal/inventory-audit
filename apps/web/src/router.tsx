@@ -6,11 +6,17 @@ import {
   createRoute,
   createRouter,
   redirect,
+  useNavigate,
+  useParams,
+  useSearch,
 } from '@tanstack/react-router';
 import { useAuth } from './auth/AuthProvider';
 import type { AuthState } from './auth/AuthProvider';
 import { AppLayout } from './layout/AppLayout';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { WarehouseDetailPage } from './features/warehouses/WarehouseDetailPage';
+import { WarehousesPage } from './features/warehouses/WarehousesPage';
+import { parseWarehouseSearch } from './features/warehouses/types';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 
@@ -68,6 +74,31 @@ const authed = createRoute({
 });
 const home = createRoute({ getParentRoute: () => authed, path: '/', component: HomePage });
 
+// المستودعات: حالة القائمة (صفحة/بحث/فلتر/فرز) في الـ URL. Warehouses: list state (page/search/filter/sort) lives in the URL.
+const warehouses = createRoute({
+  getParentRoute: () => authed,
+  path: '/warehouses',
+  validateSearch: parseWarehouseSearch,
+  component: function Warehouses() {
+    const search = useSearch({ from: '/authed/warehouses' });
+    const navigate = useNavigate({ from: '/warehouses' });
+    return (
+      <WarehousesPage
+        search={search}
+        onSearch={(next) => void navigate({ search: (prev) => ({ ...prev, ...next }) })}
+      />
+    );
+  },
+});
+const warehouseDetail = createRoute({
+  getParentRoute: () => authed,
+  path: '/warehouses/$id',
+  component: function WarehouseDetail() {
+    const { id } = useParams({ from: '/authed/warehouses/$id' });
+    return <WarehouseDetailPage id={id} />;
+  },
+});
+
 const notFound = createRoute({
   getParentRoute: () => root,
   path: '*',
@@ -77,7 +108,7 @@ const notFound = createRoute({
 export const routeTree = root.addChildren([
   login,
   changePassword,
-  authed.addChildren([home]),
+  authed.addChildren([home, warehouses, warehouseDetail]),
   notFound,
 ]);
 

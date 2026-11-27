@@ -1,4 +1,5 @@
 import { DirectionProvider, MantineProvider } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory } from '@tanstack/react-router';
 import { render } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
@@ -49,14 +50,17 @@ export const user = (over: Record<string, unknown> = {}) => ({
 export const renderApp = async (path = '/', lang: 'ar' | 'en' = 'ar') => {
   setAccessToken(null);
   await setupI18n(lang);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const history = createMemoryHistory({ initialEntries: [path] });
   return render(
     <I18nextProvider i18n={i18n}>
       <DirectionProvider initialDirection={lang === 'ar' ? 'rtl' : 'ltr'} detectDirection={false}>
         <MantineProvider theme={theme} defaultColorScheme="light">
-          <AuthProvider>
-            <App history={history} />
-          </AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <AuthProvider>
+              <App history={history} />
+            </AuthProvider>
+          </QueryClientProvider>
         </MantineProvider>
       </DirectionProvider>
     </I18nextProvider>,
