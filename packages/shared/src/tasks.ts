@@ -69,6 +69,10 @@ export const taskListQuerySchema = paginationSchema.extend({
   dir: z.enum(['asc', 'desc']).default('desc'),
 });
 
+// قائمة من يصحّ إسناده في مستودع معيّن. The people who may be assigned in a given warehouse.
+export const assignableUsersQuerySchema = z.object({ warehouseId: z.uuid() }).strict();
+export type AssignableUsersQuery = z.infer<typeof assignableUsersQuerySchema>;
+
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TaskListQuery = z.infer<typeof taskListQuerySchema>;

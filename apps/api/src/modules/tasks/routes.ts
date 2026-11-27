@@ -2,6 +2,7 @@ import {
   BALANCES_IMPORT_TEMPLATE,
   IMPORT_MAX_BYTES,
   ImportFileError,
+  assignableUsersQuerySchema,
   createTaskSchema,
   paginationSchema,
   scanBatchSchema,
@@ -25,7 +26,15 @@ import { closeTask } from './close';
 import { listRecounts, myRecounts, requestRecounts } from './recounts';
 import { taskResults, unknownBarcodes } from './results';
 import { listScans, submitScans } from './scans';
-import { cancelTask, createTask, getTask, listTasks, startTask, updateTask } from './service';
+import {
+  cancelTask,
+  createTask,
+  getTask,
+  listAssignableUsers,
+  listTasks,
+  startTask,
+  updateTask,
+} from './service';
 import type { Actor, TaskDeps } from './service';
 
 const uuidSchema = z.uuid();
@@ -63,6 +72,16 @@ export const createTaskRouter = (
     const { data, meta } = await listTasks(deps, actorOf(req), query, await seesAll(req));
     res.json({ data, meta });
   });
+
+  // قبل /tasks/:id كي لا يُفهم الاسم معرّفاً. Before /tasks/:id so the name is never read as an id.
+  router.get(
+    '/tasks/assignable-users',
+    requirePermission('inventory.task.read_all'),
+    async (req, res) => {
+      const q = parseInput(assignableUsersQuerySchema, req.query);
+      res.json({ data: await listAssignableUsers(deps, actorOf(req), q.warehouseId), meta: {} });
+    },
+  );
 
   router.post('/tasks', requirePermission('inventory.task.create'), async (req, res) => {
     const input = parseInput(createTaskSchema, req.body);

@@ -225,6 +225,55 @@ const replaceAssignees = async (
       .execute();
 };
 
+// من يصحّ إسناده: الشروط نفسها في validateAssignees (نشط، ونطاقه فارغ أو يشمل المستودع) كي لا تعرض الواجهة من سيُرفض.
+// Who may be assigned: the same rules as validateAssignees (active; scope empty or including the warehouse) so the UI never offers someone the server would refuse.
+export const listAssignableUsers = (
+  deps: TaskDeps,
+  actor: Actor,
+  warehouseId: string,
+): Promise<{ id: string; displayName: string }[]> =>
+  withTenant(deps.db, actor, async ({ trx }) => {
+    const scope = await scopeOf(trx, actor.userId);
+    const warehouse = await trx
+      .selectFrom('warehouses')
+      .select('id')
+      .where('id', '=', warehouseId)
+      .where('deleted_at', 'is', null)
+      .executeTakeFirst();
+    // خارج نطاق السائل أو غير موجود: 404 لا يكشف شيئاً. Outside the caller's scope or missing: a 404 that reveals nothing.
+    if (!warehouse || (scope && !scope.includes(warehouse.id)))
+      throw new AppError('NOT_FOUND', 404, 'Warehouse not found');
+    const rows = await trx
+      .selectFrom('users as u')
+      .select(['u.id', 'u.display_name'])
+      .where('u.active', '=', true)
+      .where('u.deleted_at', 'is', null)
+      .where((eb) =>
+        eb.or([
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom('user_warehouses as w')
+                .select('w.user_id')
+                .whereRef('w.user_id', '=', 'u.id'),
+            ),
+          ),
+          eb.exists(
+            eb
+              .selectFrom('user_warehouses as w')
+              .select('w.user_id')
+              .whereRef('w.user_id', '=', 'u.id')
+              .where('w.warehouse_id', '=', warehouseId),
+          ),
+        ]),
+      )
+      .orderBy('u.display_name')
+      .orderBy('u.id')
+      .limit(500)
+      .execute();
+    return rows.map((r) => ({ id: r.id, displayName: r.display_name }));
+  });
+
 export const view = async (trx: Trx, row: Row): Promise<TaskView> =>
   toView(row, (await assigneesOf(trx, [row.id])).get(row.id) ?? []);
 
