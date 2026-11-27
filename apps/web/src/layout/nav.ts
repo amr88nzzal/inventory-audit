@@ -10,4 +10,5 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/', labelKey: 'nav.home' },
   { to: '/warehouses', labelKey: 'nav.warehouses', permission: 'inventory.warehouse.read' },
+  { to: '/items', labelKey: 'nav.items', permission: 'inventory.item.read' },
 ];
