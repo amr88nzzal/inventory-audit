@@ -18,6 +18,7 @@ import { WarehouseDetailPage } from './features/warehouses/WarehouseDetailPage';
 import { WarehousesPage } from './features/warehouses/WarehousesPage';
 import { parseWarehouseSearch } from './features/warehouses/types';
 import { ItemDetailPage } from './features/items/ItemDetailPage';
+import { ItemsImportPage } from './features/items/ItemsImportPage';
 import { ItemsPage } from './features/items/ItemsPage';
 import { parseItemSearch } from './features/items/types';
 import { HomePage } from './pages/HomePage';
@@ -117,6 +118,17 @@ const items = createRoute({
     );
   },
 });
+// الاستيراد بصلاحيته المستقلة: من لا يملكها يرى رسالة ويُعاد للقائمة. Import has its own permission: without it the user is sent back to the list.
+const itemsImport = createRoute({
+  getParentRoute: () => authed,
+  path: '/items/import',
+  component: function ItemsImport() {
+    const { state } = useAuth();
+    if (state.status === 'authed' && !state.permissions.has('inventory.item.import'))
+      return <Navigate to="/items" search={parseItemSearch({})} />;
+    return <ItemsImportPage />;
+  },
+});
 const itemDetail = createRoute({
   getParentRoute: () => authed,
   path: '/items/$id',
@@ -135,7 +147,7 @@ const notFound = createRoute({
 export const routeTree = root.addChildren([
   login,
   changePassword,
-  authed.addChildren([home, warehouses, warehouseDetail, items, itemDetail]),
+  authed.addChildren([home, warehouses, warehouseDetail, items, itemsImport, itemDetail]),
   notFound,
 ]);
 

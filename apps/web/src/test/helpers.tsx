@@ -17,7 +17,15 @@ export const fakeServer = (routes: Record<string, Handler>) => {
   const fn = vi.fn(async (url: string | URL | Request, init: RequestInit = {}) => {
     const path = String(url).replace('/api/v1', '');
     const key = `${init.method ?? 'GET'} ${path}`;
-    const body = init.body ? (JSON.parse(String(init.body)) as unknown) : undefined;
+    // الجسم JSON عادةً، ونص خام لمسارات CSV. The body is usually JSON, raw text for CSV routes.
+    let body: unknown;
+    if (init.body) {
+      try {
+        body = JSON.parse(String(init.body)) as unknown;
+      } catch {
+        body = String(init.body);
+      }
+    }
     calls.push({ key, body });
     const h = routes[key];
     if (!h)
