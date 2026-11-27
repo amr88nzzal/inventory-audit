@@ -11,7 +11,6 @@ import {
   Text,
   TextInput,
   Title,
-  UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import { errorKey } from '../../api/errors';
 import { usePermission } from '../../auth/AuthProvider';
+import { SortableTh } from '../../components/SortableTh';
 import { EntityFormModal } from './EntityFormModal';
 import type { Warehouse, PageMeta, WarehouseSearch } from './types';
 
@@ -87,14 +87,12 @@ export const WarehousesPage = ({
       page: 1,
     });
   const header = (col: WarehouseSearch['sort'], label: string) => (
-    <Table.Th
-      aria-sort={search.sort === col ? (search.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-    >
-      <UnstyledButton onClick={() => sortBy(col)} fw={600}>
-        {label}
-        {search.sort === col ? (search.dir === 'asc' ? ' ▲' : ' ▼') : ''}
-      </UnstyledButton>
-    </Table.Th>
+    <SortableTh
+      label={label}
+      active={search.sort === col}
+      dir={search.dir}
+      onSort={() => sortBy(col)}
+    />
   );
 
   return (

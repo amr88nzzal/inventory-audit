@@ -60,7 +60,8 @@
   "nav": {
     "home": "Home",
     "main": "Main navigation",
-    "warehouses": "Warehouses"
+    "warehouses": "Warehouses",
+    "items": "Items"
   },
   "entity": {
     "code": "Code",
@@ -95,5 +96,41 @@
     "deleteMessage": "Warehouse {{code}} will be deleted with its {{count}} location(s) and removed from users' scope. This cannot be undone.",
     "deleteLocationTitle": "Delete location",
     "deleteLocationMessage": "Location {{code}} will be deleted. This cannot be undone."
+  },
+  "items": {
+    "title": "Items",
+    "add": "Add item",
+    "edit": "Edit item",
+    "empty": "No matching items",
+    "back": "Back to items",
+    "notFound": "Item not found",
+    "barcode": "Barcode",
+    "name": "Name",
+    "sku": "Item code",
+    "category": "Category",
+    "supplier": "Supplier",
+    "accountNo": "Account no.",
+    "price": "Price",
+    "tolerancePct": "Allowed variance %",
+    "baseUnit": "Base unit",
+    "units": "Extra units",
+    "unitsHint": "E.g. \"Carton\" with factor 12 means a carton = 12 base units. The factor must exceed 1.",
+    "noUnits": "No extra units",
+    "unitName": "Unit {{n}} name",
+    "unitNamePh": "Carton",
+    "unitFactor": "Unit {{n}} factor",
+    "unitFactorPh": "12",
+    "unitNameCol": "Unit",
+    "unitFactorCol": "Factor ({{base}})",
+    "addUnit": "Add unit",
+    "removeUnit": "Remove unit {{n}}",
+    "fieldInvalid": "Invalid value",
+    "factorInvalid": "The factor is a number greater than 1",
+    "barcodeTaken": "This barcode belongs to another item",
+    "skuTaken": "This item code belongs to another item",
+    "versionConflict": "Someone else changed this item. Reopen it and try again.",
+    "unitsInvalid": "Check the units: no duplicate names and none equal to the base unit",
+    "deleteTitle": "Delete item",
+    "deleteMessage": "Item \"{{name}}\" ({{barcode}}) will be removed from lists. This cannot be undone."
   }
 }
