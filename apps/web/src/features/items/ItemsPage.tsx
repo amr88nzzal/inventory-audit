@@ -67,6 +67,7 @@ export const ItemsPage = ({
   const { t } = useTranslation();
   const qc = useQueryClient();
   const canCreate = usePermission('inventory.item.create');
+  const canImport = usePermission('inventory.item.import');
   const [creating, { open, close }] = useDisclosure();
 
   const list = useQuery({
@@ -102,7 +103,14 @@ export const ItemsPage = ({
         <Title order={1} size="h2">
           {t('items.title')}
         </Title>
-        {canCreate && <Button onClick={open}>{t('items.add')}</Button>}
+        <Group>
+          {canImport && (
+            <Button component={Link} to="/items/import" variant="default">
+              {t('import.open')}
+            </Button>
+          )}
+          {canCreate && <Button onClick={open}>{t('items.add')}</Button>}
+        </Group>
       </Group>
 
       <Group align="flex-end">

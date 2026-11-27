@@ -82,6 +82,8 @@ export const refreshSession = (): Promise<boolean> => {
 export interface RequestOptions {
   method?: string;
   body?: unknown;
+  // جسم نصي خام (مثل CSV) بدل JSON. A raw text body (e.g. CSV) instead of JSON.
+  text?: { content: string; type: string };
   headers?: Record<string, string>;
   // لا محاولة تحديث عند 401 (مسارات الدخول نفسها). No refresh attempt on 401 (the sign-in routes themselves).
   auth?: boolean;
@@ -92,9 +94,10 @@ export const request = async <T>(
   options: RequestOptions = {},
   retried = false,
 ): Promise<Envelope<T>> => {
-  const { method = 'GET', body, headers = {}, auth = true } = options;
+  const { method = 'GET', body, text, headers = {}, auth = true } = options;
   const h: Record<string, string> = { ...headers };
   if (body !== undefined) h['content-type'] = 'application/json';
+  if (text) h['content-type'] = text.type;
   if (auth && accessToken) h['authorization'] = `Bearer ${accessToken}`;
   let res: Response;
   try {
@@ -102,7 +105,7 @@ export const request = async <T>(
       method,
       credentials: 'include',
       headers: h,
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(text ? { body: text.content } : body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
   } catch {
     throw new ApiError(0, 'NETWORK', 'Network error');
@@ -121,6 +124,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown, options: RequestOptions = {}) =>
     request<T>(path, { ...options, method: 'POST', body: body ?? {} }),
+  postText: <T>(path: string, content: string, type = 'text/csv') =>
+    request<T>(path, { method: 'POST', text: { content, type } }),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),

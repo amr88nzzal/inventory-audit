@@ -26,6 +26,15 @@ describe('api client', () => {
     expect(init.credentials).toBe('include');
   });
 
+  it('postText sends the raw text with its content type (never JSON-encoded)', async () => {
+    const fn = vi.fn(async () => json(200, { data: null, meta: {} }));
+    vi.stubGlobal('fetch', fn);
+    await api.postText('/items/import?mode=preview', 'barcode,name\n1,"x"\n');
+    const [, init] = fn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.body).toBe('barcode,name\n1,"x"\n');
+    expect((init.headers as Record<string, string>)['content-type']).toBe('text/csv');
+  });
+
   it('turns server errors into ApiError with code, details and request id', async () => {
     vi.stubGlobal(
       'fetch',
