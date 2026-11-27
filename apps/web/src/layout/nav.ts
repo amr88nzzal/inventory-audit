@@ -7,4 +7,7 @@ export interface NavItem {
   labelKey: string;
   permission?: Permission;
 }
-export const NAV_ITEMS: readonly NavItem[] = [{ to: '/', labelKey: 'nav.home' }];
+export const NAV_ITEMS: readonly NavItem[] = [
+  { to: '/', labelKey: 'nav.home' },
+  { to: '/warehouses', labelKey: 'nav.warehouses', permission: 'inventory.warehouse.read' },
+];

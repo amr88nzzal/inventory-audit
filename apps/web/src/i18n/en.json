@@ -1,15 +1,29 @@
 {
-  "app": { "name": "Inventory" },
+  "app": {
+    "name": "Inventory"
+  },
   "common": {
     "loading": "Loading…",
     "logout": "Sign out",
     "language": "Language",
     "arabic": "العربية",
     "english": "English",
-    "theme": { "light": "Light", "dark": "Dark", "auto": "Auto", "label": "Theme" },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "Auto",
+      "label": "Theme"
+    },
     "skip": "Skip to content",
     "genericError": "Something went wrong. Please try again.",
-    "networkError": "Could not reach the server. Check your connection and try again."
+    "networkError": "Could not reach the server. Check your connection and try again.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search",
+    "actions": "Actions",
+    "forbidden": "You do not have permission for this action"
   },
   "login": {
     "title": "Sign in",
@@ -43,5 +57,43 @@
     "permissions": "Your permissions: {{count}}",
     "soon": "The screens (warehouses, items, tasks) arrive in the next batches."
   },
-  "nav": { "home": "Home", "main": "Main navigation" }
+  "nav": {
+    "home": "Home",
+    "main": "Main navigation",
+    "warehouses": "Warehouses"
+  },
+  "entity": {
+    "code": "Code",
+    "codeHint": "Latin letters, digits, dashes, up to 32; cannot change after creation",
+    "codeInvalid": "Invalid code: Latin letters, digits and - _ only, up to 32",
+    "name": "Name",
+    "nameRequired": "Name is required (up to 120 characters)",
+    "status": "Status",
+    "active": "Active",
+    "all": "All",
+    "activeOnly": "Active only",
+    "inactiveOnly": "Inactive only",
+    "activeBadge": "Active",
+    "inactiveBadge": "Inactive"
+  },
+  "warehouses": {
+    "title": "Warehouses",
+    "add": "Add warehouse",
+    "edit": "Edit warehouse",
+    "empty": "No matching warehouses",
+    "back": "Back to warehouses",
+    "notFound": "Warehouse not found",
+    "locations": "Locations",
+    "addLocation": "Add location",
+    "editLocation": "Edit location",
+    "noLocations": "No locations yet",
+    "codeTaken": "This code is used by another warehouse",
+    "locationCodeTaken": "This code is used by another location in the warehouse",
+    "scopeRestricted": "Your warehouse scope does not allow this action",
+    "versionConflict": "Someone else changed this record. It was reloaded, try again.",
+    "deleteTitle": "Delete warehouse",
+    "deleteMessage": "Warehouse {{code}} will be deleted with its {{count}} location(s) and removed from users' scope. This cannot be undone.",
+    "deleteLocationTitle": "Delete location",
+    "deleteLocationMessage": "Location {{code}} will be deleted. This cannot be undone."
+  }
 }
