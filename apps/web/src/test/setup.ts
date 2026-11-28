@@ -27,5 +27,11 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver = ResizeObserverStub;
 Object.defineProperty(document, 'fonts', {
-  value: { ready: Promise.resolve(), addEventListener: () => undefined },
+  value: {
+    ready: Promise.resolve(),
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  },
 });
+// jsdom لا يعرف scrollIntoView (تستعمله القوائم المنسدلة). jsdom lacks scrollIntoView (dropdowns use it).
+Element.prototype.scrollIntoView = () => undefined;
