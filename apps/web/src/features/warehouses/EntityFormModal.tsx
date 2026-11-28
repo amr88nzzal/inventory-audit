@@ -75,7 +75,13 @@ export const EntityFormModal = ({
   });
 
   return (
-    <Modal opened={opened} onClose={onClose} title={title} centered>
+    <Modal
+      closeButtonProps={{ 'aria-label': t('common.closeDialog') }}
+      opened={opened}
+      onClose={onClose}
+      title={title}
+      centered
+    >
       <form onSubmit={submit} noValidate>
         <Stack>
           {mode === 'create' && (
