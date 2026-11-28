@@ -1,6 +1,7 @@
 import {
   Alert,
   Badge,
+  Button,
   Card,
   Group,
   Pagination,
@@ -16,6 +17,9 @@ import {
 import { RESULT_FILTERS, RESULT_SORTS } from '@inventory/shared';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { useDisclosure } from '@mantine/hooks';
+import { usePermission } from '../../auth/AuthProvider';
+import { CloseTaskModal } from './CloseTaskModal';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../../api/client';
@@ -97,6 +101,8 @@ export const TaskResultsPage = ({
   onSearch: (next: Partial<ResultsSearch>) => void;
 }) => {
   const { t } = useTranslation();
+  const canClose = usePermission('inventory.task.close');
+  const [closing, closeCtl] = useDisclosure();
   const task = useQuery({
     queryKey: ['task', id],
     queryFn: async () => (await api.get<Task>(`/tasks/${id}`)).data,
@@ -180,9 +186,26 @@ export const TaskResultsPage = ({
   return (
     <Stack>
       {back}
-      <Title order={1} size="h2">
-        {`#${k.taskNo} — ${t('results.title')}`}
-      </Title>
+      <Group justify="space-between">
+        <Title order={1} size="h2">
+          {`#${k.taskNo} — ${t('results.title')}`}
+        </Title>
+        {canClose && k.status === 'in_progress' && s && (
+          <Button color="red" variant="light" onClick={closeCtl.open}>
+            {t('close.open')}
+          </Button>
+        )}
+      </Group>
+      {s && canClose && k.status === 'in_progress' && (
+        <CloseTaskModal
+          opened={closing}
+          taskId={id}
+          version={k.version}
+          flagged={s.flagged}
+          recountPending={s.recountPending}
+          onClose={closeCtl.close}
+        />
+      )}
       {res.isError && <Alert color="red">{t(errorKey(res.error))}</Alert>}
       {res.isPending && !res.isError && <Skeleton height={200} />}
 

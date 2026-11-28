@@ -151,6 +151,7 @@ export const ItemFormModal = ({
 
   return (
     <Modal
+      closeButtonProps={{ 'aria-label': t('common.closeDialog') }}
       opened={opened}
       onClose={onClose}
       title={t(mode === 'create' ? 'items.add' : 'items.edit')}

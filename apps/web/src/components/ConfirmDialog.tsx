@@ -23,7 +23,13 @@ export const ConfirmDialog = ({
 }) => {
   const { t } = useTranslation();
   return (
-    <Modal opened={opened} onClose={onClose} title={title} centered>
+    <Modal
+      closeButtonProps={{ 'aria-label': t('common.closeDialog') }}
+      opened={opened}
+      onClose={onClose}
+      title={title}
+      centered
+    >
       <Stack>
         <Text>{message}</Text>
         {error && (

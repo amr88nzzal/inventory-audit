@@ -25,7 +25,8 @@
     "actions": "Actions",
     "forbidden": "You do not have permission for this action",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "closeDialog": "Close dialog"
   },
   "login": {
     "title": "Sign in",
@@ -333,5 +334,20 @@
       "over": "Over",
       "short": "Short"
     }
+  },
+  "close": {
+    "open": "Close task",
+    "title": "Close audit task",
+    "impact": "Scanning stops and the final result of every item is frozen. Closing cannot be undone.",
+    "blockedByRecount": "{{count}} recount(s) are pending; finish them or drop the item before closing.",
+    "flaggedWarning": "{{count}} item(s) are over tolerance. Closing accepts these variances as they are.",
+    "acknowledge": "I acknowledge the flagged variances and want to close",
+    "note": "Closing note (optional)",
+    "confirm": "Close task",
+    "noteInvalid": "The note is not valid",
+    "unresolved": "Flagged variances remain; acknowledge them to continue.",
+    "recountPending": "A pending recount blocks closing.",
+    "notRunning": "The task is not running.",
+    "keyReused": "Request key conflict. Try again."
   }
 }

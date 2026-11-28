@@ -166,6 +166,7 @@ export const TaskFormModal = ({
 
   return (
     <Modal
+      closeButtonProps={{ 'aria-label': t('common.closeDialog') }}
       opened={opened}
       onClose={onClose}
       title={t(mode === 'create' ? 'tasks.add' : 'tasks.edit')}
