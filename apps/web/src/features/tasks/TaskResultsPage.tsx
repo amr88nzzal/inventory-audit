@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   Card,
+  Checkbox,
   Group,
   Pagination,
   Select,
@@ -20,6 +21,7 @@ import { Link } from '@tanstack/react-router';
 import { useDisclosure } from '@mantine/hooks';
 import { usePermission } from '../../auth/AuthProvider';
 import { CloseTaskModal } from './CloseTaskModal';
+import { RecountModal } from './RecountModal';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '../../api/client';
@@ -102,7 +104,12 @@ export const TaskResultsPage = ({
 }) => {
   const { t } = useTranslation();
   const canClose = usePermission('inventory.task.close');
+  const canRecount = usePermission('inventory.task.recount');
   const [closing, closeCtl] = useDisclosure();
+  const [recounting, recountCtl] = useDisclosure();
+  // الاختيار يبقى عبر الصفحات؛ null في النافذة = كل المعلَّم. Selection survives paging; null in the modal = all flagged.
+  const [picked, setPicked] = useState<Map<string, string>>(new Map());
+  const [flaggedMode, setFlaggedMode] = useState(false);
   const task = useQuery({
     queryKey: ['task', id],
     queryFn: async () => (await api.get<Task>(`/tasks/${id}`)).data,
@@ -171,6 +178,7 @@ export const TaskResultsPage = ({
   const meta = res.data?.meta;
   const s = meta?.summary;
   const frozen = meta?.frozen ?? false;
+  const running = k.status === 'in_progress';
 
   const card = (label: string, value: string | number, color?: string) => (
     <Card withBorder padding="sm" key={label}>
@@ -190,13 +198,52 @@ export const TaskResultsPage = ({
         <Title order={1} size="h2">
           {`#${k.taskNo} — ${t('results.title')}`}
         </Title>
-        {canClose && k.status === 'in_progress' && s && (
-          <Button color="red" variant="light" onClick={closeCtl.open}>
-            {t('close.open')}
-          </Button>
-        )}
+        <Group>
+          {canRecount && running && s && (
+            <>
+              <Button
+                variant="default"
+                disabled={picked.size === 0}
+                onClick={() => {
+                  setFlaggedMode(false);
+                  recountCtl.open();
+                }}
+              >
+                {t('recount.requestSelected', { count: picked.size })}
+              </Button>
+              <Button
+                variant="default"
+                disabled={s.flagged === 0}
+                onClick={() => {
+                  setFlaggedMode(true);
+                  recountCtl.open();
+                }}
+              >
+                {t('recount.requestFlagged', { count: s.flagged })}
+              </Button>
+            </>
+          )}
+          {canClose && running && s && (
+            <Button color="red" variant="light" onClick={closeCtl.open}>
+              {t('close.open')}
+            </Button>
+          )}
+        </Group>
       </Group>
-      {s && canClose && k.status === 'in_progress' && (
+      {canRecount && running && s && (
+        <RecountModal
+          opened={recounting}
+          taskId={id}
+          assignees={k.assignees}
+          items={flaggedMode ? null : [...picked].map(([i, name]) => ({ id: i, name }))}
+          tolerancePct={search.tolerancePct}
+          onClose={() => {
+            recountCtl.close();
+            if (!flaggedMode) setPicked(new Map());
+          }}
+        />
+      )}
+      {s && canClose && running && (
         <CloseTaskModal
           opened={closing}
           taskId={id}
@@ -268,6 +315,7 @@ export const TaskResultsPage = ({
             <Table striped>
               <Table.Thead>
                 <Table.Tr>
+                  {canRecount && running && <Table.Th aria-label={t('recount.select')} />}
                   <Table.Th>{t('items.barcode')}</Table.Th>
                   <Table.Th>{t('items.name')}</Table.Th>
                   <Table.Th>{t('items.baseUnit')}</Table.Th>
@@ -281,6 +329,24 @@ export const TaskResultsPage = ({
               <Table.Tbody>
                 {(res.data?.rows ?? []).map((r) => (
                   <Table.Tr key={r.itemId}>
+                    {canRecount && running && (
+                      <Table.Td>
+                        <Checkbox
+                          aria-label={`${t('recount.select')} ${r.barcode}`}
+                          checked={picked.has(r.itemId)}
+                          disabled={r.recountPending}
+                          onChange={(e) => {
+                            const on = e.currentTarget.checked;
+                            setPicked((prev) => {
+                              const next = new Map(prev);
+                              if (on) next.set(r.itemId, r.name);
+                              else next.delete(r.itemId);
+                              return next;
+                            });
+                          }}
+                        />
+                      </Table.Td>
+                    )}
                     <Table.Td>{r.barcode}</Table.Td>
                     <Table.Td>{r.name}</Table.Td>
                     <Table.Td>{r.baseUnit}</Table.Td>
