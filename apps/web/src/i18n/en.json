@@ -246,7 +246,8 @@
     "noAssignees": "Assign at least one person before starting.",
     "invalidTransition": "That transition is not possible in the task's current state.",
     "backToTask": "Back to the task",
-    "balancesLink": "Balance snapshot"
+    "balancesLink": "Balance snapshot",
+    "scansLink": "Scan log"
   },
   "balances": {
     "intro": "Upload a CSV of barcode and quantity (in the base unit). An upload replaces the previous snapshot entirely, and it freezes when the task starts.",
@@ -260,5 +261,29 @@
       "validRows": "Valid rows"
     },
     "confirmMessage": "This snapshot ({{count}} item(s)) will replace the previous one entirely; {{skipped}} invalid row(s) skipped. This cannot be undone."
+  },
+  "scans": {
+    "title": "Scan log",
+    "ownOnly": "You only see your own records.",
+    "kind": "Type",
+    "kindCount": "Count",
+    "kindVoid": "Void",
+    "user": "Employee",
+    "time": "Time",
+    "item": "Item",
+    "location": "Location",
+    "unknownItem": "Unknown item",
+    "voided": "Voided",
+    "empty": "No matching records",
+    "void": "Void",
+    "voidTitle": "Void count",
+    "voidMessage": "The count of barcode {{barcode}} (quantity {{quantity}}) will be voided; the void is recorded as a new record and the original is never edited. It cannot be voided twice.",
+    "errNotFound": "The record does not exist or is not your count.",
+    "errInvalid": "Only a count can be voided.",
+    "errAlreadyVoided": "This count is already voided.",
+    "errRecount": "The item is now in a recount by another reviewer.",
+    "errNotRunning": "The task is not running.",
+    "errNotAssigned": "You are not assigned to this task.",
+    "errGeneric": "Could not void."
   }
 }
