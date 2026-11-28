@@ -19,6 +19,7 @@ import { errorKey } from '../../api/errors';
 import { usePermission } from '../../auth/AuthProvider';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { formatDateTime } from '../../format';
+import { parseBalancesSearch } from './TaskBalancesPage';
 import { StatusBadge } from './StatusBadge';
 import { TASK_ERRORS, TaskFormModal } from './TaskFormModal';
 import type { Task } from './types';
@@ -125,6 +126,9 @@ export const TaskDetailPage = ({ id }: { id: string }) => {
         </Group>
       </Group>
       <StatusBadge status={k.status} />
+      <Link to="/tasks/$id/balances" params={{ id }} search={parseBalancesSearch({})}>
+        {t('tasks.balancesLink')}
+      </Link>
       {draft && canStart && noAssignees && <Text c="dimmed">{t('tasks.startNeedsAssignees')}</Text>}
       {k.status === 'in_progress' && <Text c="dimmed">{t('tasks.frozenNote')}</Text>}
 

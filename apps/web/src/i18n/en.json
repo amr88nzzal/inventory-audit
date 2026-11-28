@@ -176,7 +176,8 @@
       "INVALID_VALUE": "Invalid value",
       "DUPLICATE_IN_FILE": "Duplicate within the file",
       "SKU_TAKEN": "The code belongs to another item",
-      "BASE_UNIT_CONFLICT": "The unit clashes with the item's extra units"
+      "BASE_UNIT_CONFLICT": "The unit clashes with the item's extra units",
+      "ITEM_NOT_FOUND": "No item has this barcode (import the items first)"
     },
     "emptyFile": "The file is empty or has no data rows",
     "missingColumns": "Required columns are missing: barcode and name",
@@ -184,7 +185,8 @@
     "badCsv": "The file could not be read as CSV",
     "duplicateColumns": "A column appears twice in the header",
     "invalidRows": "The file has invalid rows and nothing was written. Fix or skip them.",
-    "conflict": "Conflicts with a concurrent change. Try again."
+    "conflict": "Conflicts with a concurrent change. Try again.",
+    "nothingValid": "There are no valid rows to write"
   },
   "tasks": {
     "title": "Count tasks",
@@ -242,6 +244,21 @@
     "assigneeOutOfScope": "Some assignees cannot access this warehouse.",
     "warehouseInactive": "The warehouse is inactive.",
     "noAssignees": "Assign at least one person before starting.",
-    "invalidTransition": "That transition is not possible in the task's current state."
+    "invalidTransition": "That transition is not possible in the task's current state.",
+    "backToTask": "Back to the task",
+    "balancesLink": "Balance snapshot"
+  },
+  "balances": {
+    "intro": "Upload a CSV of barcode and quantity (in the base unit). An upload replaces the previous snapshot entirely, and it freezes when the task starts.",
+    "snapshot": "Current snapshot",
+    "searchHint": "By barcode or name",
+    "quantity": "Quantity",
+    "empty": "No snapshot uploaded yet",
+    "frozen": "The task has started: the snapshot is frozen and cannot be replaced.",
+    "blind": "This task is a blind count: the theoretical balance is hidden from you.",
+    "stat": {
+      "validRows": "Valid rows"
+    },
+    "confirmMessage": "This snapshot ({{count}} item(s)) will replace the previous one entirely; {{skipped}} invalid row(s) skipped. This cannot be undone."
   }
 }
