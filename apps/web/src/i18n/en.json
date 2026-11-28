@@ -247,7 +247,8 @@
     "invalidTransition": "That transition is not possible in the task's current state.",
     "backToTask": "Back to the task",
     "balancesLink": "Balance snapshot",
-    "scansLink": "Scan log"
+    "scansLink": "Scan log",
+    "resultsLink": "Results and variances"
   },
   "balances": {
     "intro": "Upload a CSV of barcode and quantity (in the base unit). An upload replaces the previous snapshot entirely, and it freezes when the task starts.",
@@ -285,5 +286,52 @@
     "errNotRunning": "The task is not running.",
     "errNotAssigned": "You are not assigned to this task.",
     "errGeneric": "Could not void."
+  },
+  "results": {
+    "title": "Results and variances",
+    "frozen": "Results are frozen: the task is closed and read from the copy saved at close.",
+    "live": "Live results computed from the current counts and the balance snapshot; they change until close.",
+    "items": "Items",
+    "matched": "Matched",
+    "over": "Over",
+    "short": "Short",
+    "flagged": "Need recount",
+    "recountPending": "Recounts pending",
+    "totalTheoretical": "Total theoretical",
+    "totalCounted": "Total counted",
+    "totalDifference": "Total difference",
+    "unknownBarcodes": "Unknown barcodes",
+    "filter": "Show",
+    "sort": "Sort",
+    "tolerance": "Default tolerance %",
+    "toleranceHint": "Applies when neither the item nor the task defines one",
+    "theoretical": "Theoretical",
+    "counted": "Counted",
+    "difference": "Difference",
+    "pct": "Percent",
+    "empty": "No matching items",
+    "needsRecount": "Needs recount",
+    "recountWaiting": "Recount pending",
+    "unknownTitle": "Unknown barcodes",
+    "unknownHint": "Counted but not among the items; import them or fix the barcode, then recompute.",
+    "records": "Records",
+    "unknownTruncated": "Showing {{shown}} of {{total}} barcodes.",
+    "filters": {
+      "all": "All",
+      "match": "Matched",
+      "over": "Over",
+      "short": "Short",
+      "flagged": "Flagged for recount"
+    },
+    "sorts": {
+      "difference": "Largest difference",
+      "name": "Name",
+      "barcode": "Barcode"
+    },
+    "status": {
+      "match": "Match",
+      "over": "Over",
+      "short": "Short"
+    }
   }
 }
