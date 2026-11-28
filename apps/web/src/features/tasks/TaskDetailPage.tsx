@@ -20,6 +20,7 @@ import { usePermission } from '../../auth/AuthProvider';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { formatDateTime } from '../../format';
 import { parseBalancesSearch } from './TaskBalancesPage';
+import { parseResultsSearch } from './TaskResultsPage';
 import { parseScansSearch } from './TaskScansPage';
 import { StatusBadge } from './StatusBadge';
 import { TASK_ERRORS, TaskFormModal } from './TaskFormModal';
@@ -31,6 +32,7 @@ export const TaskDetailPage = ({ id }: { id: string }) => {
   const canUpdate = usePermission('inventory.task.update');
   const canStart = usePermission('inventory.task.start');
   const canCancel = usePermission('inventory.task.cancel');
+  const seeAll = usePermission('inventory.task.read_all');
   const [editing, editCtl] = useDisclosure();
   const [starting, startCtl] = useDisclosure();
   const [cancelling, cancelCtl] = useDisclosure();
@@ -133,6 +135,11 @@ export const TaskDetailPage = ({ id }: { id: string }) => {
       <Link to="/tasks/$id/scans" params={{ id }} search={parseScansSearch({})}>
         {t('tasks.scansLink')}
       </Link>
+      {seeAll && k.status !== 'draft' && k.status !== 'cancelled' && (
+        <Link to="/tasks/$id/results" params={{ id }} search={parseResultsSearch({})}>
+          {t('tasks.resultsLink')}
+        </Link>
+      )}
       {draft && canStart && noAssignees && <Text c="dimmed">{t('tasks.startNeedsAssignees')}</Text>}
       {k.status === 'in_progress' && <Text c="dimmed">{t('tasks.frozenNote')}</Text>}
 

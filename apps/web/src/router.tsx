@@ -21,6 +21,7 @@ import { ItemDetailPage } from './features/items/ItemDetailPage';
 import { ItemsImportPage } from './features/items/ItemsImportPage';
 import { ItemsPage } from './features/items/ItemsPage';
 import { parseItemSearch } from './features/items/types';
+import { TaskResultsPage, parseResultsSearch } from './features/tasks/TaskResultsPage';
 import { TaskScansPage, parseScansSearch } from './features/tasks/TaskScansPage';
 import { TaskBalancesPage, parseBalancesSearch } from './features/tasks/TaskBalancesPage';
 import { TaskDetailPage } from './features/tasks/TaskDetailPage';
@@ -203,6 +204,24 @@ const taskScans = createRoute({
   },
 });
 
+const taskResults = createRoute({
+  getParentRoute: () => authed,
+  path: '/tasks/$id/results',
+  validateSearch: parseResultsSearch,
+  component: function TaskResults() {
+    const { id } = useParams({ from: '/authed/tasks/$id/results' });
+    const search = useSearch({ from: '/authed/tasks/$id/results' });
+    const navigate = useNavigate({ from: '/tasks/$id/results' });
+    return (
+      <TaskResultsPage
+        id={id}
+        search={search}
+        onSearch={(next) => void navigate({ search: (prev) => ({ ...prev, ...next }) })}
+      />
+    );
+  },
+});
+
 const notFound = createRoute({
   getParentRoute: () => root,
   path: '*',
@@ -223,6 +242,7 @@ export const routeTree = root.addChildren([
     taskDetail,
     taskBalances,
     taskScans,
+    taskResults,
   ]),
   notFound,
 ]);
