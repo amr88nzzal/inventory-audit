@@ -21,6 +21,7 @@ import { ItemDetailPage } from './features/items/ItemDetailPage';
 import { ItemsImportPage } from './features/items/ItemsImportPage';
 import { ItemsPage } from './features/items/ItemsPage';
 import { parseItemSearch } from './features/items/types';
+import { TaskBalancesPage, parseBalancesSearch } from './features/tasks/TaskBalancesPage';
 import { TaskDetailPage } from './features/tasks/TaskDetailPage';
 import { TasksPage } from './features/tasks/TasksPage';
 import { parseTaskSearch } from './features/tasks/types';
@@ -165,6 +166,24 @@ const taskDetail = createRoute({
   },
 });
 
+const taskBalances = createRoute({
+  getParentRoute: () => authed,
+  path: '/tasks/$id/balances',
+  validateSearch: parseBalancesSearch,
+  component: function TaskBalances() {
+    const { id } = useParams({ from: '/authed/tasks/$id/balances' });
+    const search = useSearch({ from: '/authed/tasks/$id/balances' });
+    const navigate = useNavigate({ from: '/tasks/$id/balances' });
+    return (
+      <TaskBalancesPage
+        id={id}
+        search={search}
+        onSearch={(next) => void navigate({ search: (prev) => ({ ...prev, ...next }) })}
+      />
+    );
+  },
+});
+
 const notFound = createRoute({
   getParentRoute: () => root,
   path: '*',
@@ -183,6 +202,7 @@ export const routeTree = root.addChildren([
     itemDetail,
     tasks,
     taskDetail,
+    taskBalances,
   ]),
   notFound,
 ]);
