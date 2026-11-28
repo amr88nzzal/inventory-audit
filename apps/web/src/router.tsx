@@ -21,6 +21,9 @@ import { ItemDetailPage } from './features/items/ItemDetailPage';
 import { ItemsImportPage } from './features/items/ItemsImportPage';
 import { ItemsPage } from './features/items/ItemsPage';
 import { parseItemSearch } from './features/items/types';
+import { TaskDetailPage } from './features/tasks/TaskDetailPage';
+import { TasksPage } from './features/tasks/TasksPage';
+import { parseTaskSearch } from './features/tasks/types';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 
@@ -138,6 +141,30 @@ const itemDetail = createRoute({
   },
 });
 
+const tasks = createRoute({
+  getParentRoute: () => authed,
+  path: '/tasks',
+  validateSearch: parseTaskSearch,
+  component: function Tasks() {
+    const search = useSearch({ from: '/authed/tasks' });
+    const navigate = useNavigate({ from: '/tasks' });
+    return (
+      <TasksPage
+        search={search}
+        onSearch={(next) => void navigate({ search: (prev) => ({ ...prev, ...next }) })}
+      />
+    );
+  },
+});
+const taskDetail = createRoute({
+  getParentRoute: () => authed,
+  path: '/tasks/$id',
+  component: function TaskDetail() {
+    const { id } = useParams({ from: '/authed/tasks/$id' });
+    return <TaskDetailPage id={id} />;
+  },
+});
+
 const notFound = createRoute({
   getParentRoute: () => root,
   path: '*',
@@ -147,7 +174,16 @@ const notFound = createRoute({
 export const routeTree = root.addChildren([
   login,
   changePassword,
-  authed.addChildren([home, warehouses, warehouseDetail, items, itemsImport, itemDetail]),
+  authed.addChildren([
+    home,
+    warehouses,
+    warehouseDetail,
+    items,
+    itemsImport,
+    itemDetail,
+    tasks,
+    taskDetail,
+  ]),
   notFound,
 ]);
 
