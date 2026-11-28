@@ -349,5 +349,26 @@
     "recountPending": "A pending recount blocks closing.",
     "notRunning": "The task is not running.",
     "keyReused": "Request key conflict. Try again."
+  },
+  "recount": {
+    "title": "Request recount",
+    "select": "Select",
+    "requestSelected": "Recount selected ({{count}})",
+    "requestFlagged": "Recount flagged ({{count}})",
+    "scopeItems": "A recount of {{count}} selected item(s) will be requested.",
+    "scopeFlagged": "A recount of all currently flagged items (by the chosen tolerance) will be requested.",
+    "hint": "The reviewer must be assigned to the task and must not have counted the item before. Their count replaces the earlier one in the result; the first count stays in the log.",
+    "reviewer": "Reviewer",
+    "noReviewers": "No assignees",
+    "reason": "Reason (optional)",
+    "submit": "Request recount",
+    "invalid": "The data is not valid",
+    "invalidAssignee": "The reviewer is not assigned to the task.",
+    "done": "Done",
+    "summary": "{{created}} requested, {{pending}} already pending, {{rejected}} rejected.",
+    "rejected": {
+      "ITEM_NOT_IN_TASK": "The item is not in the task",
+      "REVIEWER_COUNTED_BEFORE": "The reviewer counted this item before"
+    }
   }
 }
